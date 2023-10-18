@@ -21,9 +21,17 @@ html_content = html_content.replace('<link rel="stylesheet" href="style.css">', 
 # Replace <script src="script.js"></script> with the JavaScript content
 html_content = html_content.replace('<script src="script.js"></script>', f'<script>{js_content}</script>')
 
-# Save the modified HTML content to a new file
-output_file_path = "output.html"
-with open(output_file_path, "w") as output_file:
-    output_file.write(html_content)
+# Convert the HTML content to a hexadecimal array
+html_hex_array = [f"0x{ord(char):02x}" for char in html_content]
 
-print("HTML file with inline CSS and JavaScript has been created at", output_file_path)
+# Create a string representation of the hexadecimal array
+html_hex_string = ", ".join(html_hex_array)
+
+# Save the modified HTML content as a hexadecimal array to a new file
+output_file_path = "C:\\Users\\27100363\Downloads\PSIFI-15-TechWars-main\PSIFI-15-TechWars-main\Main\webpage.h"
+with open(output_file_path, "w") as output_file:
+    output_file.write("const byte htmlContent[] PROGMEM = {\n")
+    output_file.write(f"  {html_hex_string}\n")
+    output_file.write("};")
+
+print("HTML file with inline CSS and JavaScript has been created as a hexadecimal array in", output_file_path)

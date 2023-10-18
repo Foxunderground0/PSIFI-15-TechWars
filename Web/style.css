@@ -16,14 +16,14 @@ body {
 /* Style the console window */
 .console {
   background-color: #5a5f73; /* #5a5f73 color */
-  border: 1px solid #000; /* Black border */
-  border-radius: 5px; /* Add some rounded corners */
+  border: 2px solid #000; /* Black border */
+  border-radius: 1%; /* Add some rounded corners */
   padding: 10px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Add a shadow effect */
+  box-shadow: -5px 9px 19px 3px rgb(0 0 0 / 52%); /* Add a shadow effect */
   align-items: center; /* Center the content within the console */
-  height: 70vh; /* Set a fixed height for the console */
+  height: 80vh; /* Set a fixed height for the console */
   overflow-y: auto; /* Add a vertical scrollbar when content exceeds the height */
-  max-width: 120ch; /* Set the maximum width to 120 characters */
+  width: 130ch; /* Set the maximum width to 120 characters */
 }
 
 /* Style the output container within the console */
@@ -38,7 +38,17 @@ body {
   color: red;
 }
 
+.bootTime {
+  color: lightgreen;
+}
 
+.asciibanner {
+  color: khaki;
+}
+
+.seperator {
+  color: silver;
+}
 
 /* Style the scrollbar */
 .console::-webkit-scrollbar {

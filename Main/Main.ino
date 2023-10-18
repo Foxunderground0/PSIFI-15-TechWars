@@ -1,17 +1,23 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+#include <base64.h>
+#include <LittleFS.h>
+#include "webpage.h"
 
 const char* ssid = "Storm PTCL";
 const char* password = "35348E80687?!";
 
 ESP8266WebServer server(80);
 
-String rawData = "Initial Raw Data";
-
+String rawData = "";
 void handleRoot() {
   // Create a simple HTML page that displays the rawData and updates it every second
-  String html = "data:text/html;base64,PCFET0NUWVBFIGh0bWw+DQo8aHRtbD4NCg0KPGhlYWQ+DQogIDxzdHlsZT4NCiAgICAvKiBSZXNldCBkZWZhdWx0IG1hcmdpbiBhbmQgcGFkZGluZyBmb3IgdGhlIHdob2xlIHBhZ2UgKi8NCiAgICBodG1sLA0KICAgIGJvZHkgew0KICAgICAgbWFyZ2luOiAwOw0KICAgICAgcGFkZGluZzogMDsNCiAgICAgIGhlaWdodDogMTAwJTsNCiAgICB9DQoNCiAgICAvKiBTZXQgYSBiYWNrZ3JvdW5kIGNvbG9yIGZvciB0aGUgd2hvbGUgcGFnZSAqLw0KICAgIGJvZHkgew0KICAgICAgYmFja2dyb3VuZC1jb2xvcjogI2YwZjBmMDsNCiAgICAgIC8qIExpZ2h0ZXIgc2hhZGUgb2YgZ3JleSAqLw0KICAgICAgZGlzcGxheTogZmxleDsNCiAgICAgIGp1c3RpZnktY29udGVudDogY2VudGVyOw0KICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjsNCiAgICB9DQoNCiAgICAvKiBTdHlsZSB0aGUgY29uc29sZSB3aW5kb3cgKi8NCiAgICAuY29uc29sZSB7DQogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjNWE1ZjczOw0KICAgICAgLyogIzVhNWY3MyBjb2xvciAqLw0KICAgICAgYm9yZGVyOiAxcHggc29saWQgIzAwMDsNCiAgICAgIC8qIEJsYWNrIGJvcmRlciAqLw0KICAgICAgYm9yZGVyLXJhZGl1czogNXB4Ow0KICAgICAgLyogQWRkIHNvbWUgcm91bmRlZCBjb3JuZXJzICovDQogICAgICBwYWRkaW5nOiAxMHB4Ow0KICAgICAgYm94LXNoYWRvdzogMCAwIDEwcHggcmdiYSgwLCAwLCAwLCAwLjUpOw0KICAgICAgLyogQWRkIGEgc2hhZG93IGVmZmVjdCAqLw0KICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjsNCiAgICAgIC8qIENlbnRlciB0aGUgY29udGVudCB3aXRoaW4gdGhlIGNvbnNvbGUgKi8NCiAgICAgIGhlaWdodDogNzB2aDsNCiAgICAgIC8qIFNldCBhIGZpeGVkIGhlaWdodCBmb3IgdGhlIGNvbnNvbGUgKi8NCiAgICAgIG92ZXJmbG93LXk6IGF1dG87DQogICAgICAvKiBBZGQgYSB2ZXJ0aWNhbCBzY3JvbGxiYXIgd2hlbiBjb250ZW50IGV4Y2VlZHMgdGhlIGhlaWdodCAqLw0KICAgICAgbWF4LXdpZHRoOiAxMjBjaDsNCiAgICAgIC8qIFNldCB0aGUgbWF4aW11bSB3aWR0aCB0byAxMjAgY2hhcmFjdGVycyAqLw0KICAgIH0NCg0KICAgIC8qIFN0eWxlIHRoZSBvdXRwdXQgY29udGFpbmVyIHdpdGhpbiB0aGUgY29uc29sZSAqLw0KICAgIC5vdXRwdXQgew0KICAgICAgY29sb3I6ICNmZmY7DQogICAgICAvKiBUZXh0IGNvbG9yIGZvciB0aGUgY29uc29sZSBjb250ZW50ICovDQogICAgICBmb250LWZhbWlseTogbW9ub3NwYWNlOw0KICAgICAgLyogVXNlIGEgbW9ub3NwYWNlIGZvbnQgdG8gc2ltdWxhdGUgYSB0ZXJtaW5hbCAqLw0KICAgICAgd29yZC13cmFwOiBicmVhay13b3JkOw0KICAgICAgLyogV3JhcCB0ZXh0IHdoZW4gaXQicyBsb25nZXIgdGhhbiB0aGUgY29udGFpbmVyIHdpZHRoICovDQogICAgfQ0KDQogICAgLyogU3R5bGUgdGhlIHJlZCB0ZXh0ICovDQogICAgLnJlZCB7DQogICAgICBjb2xvcjogcmVkOw0KICAgIH0NCg0KDQoNCiAgICAvKiBTdHlsZSB0aGUgc2Nyb2xsYmFyICovDQogICAgLmNvbnNvbGU6Oi13ZWJraXQtc2Nyb2xsYmFyIHsNCiAgICAgIHdpZHRoOiA4cHg7DQogICAgICAvKiBTZXQgdGhlIHdpZHRoIG9mIHRoZSBzY3JvbGxiYXIgKi8NCiAgICB9DQoNCiAgICAuY29uc29sZTo6LXdlYmtpdC1zY3JvbGxiYXItdGh1bWIgew0KICAgICAgYmFja2dyb3VuZDogIzUwNTA1MDsNCiAgICAgIC8qIENvbG9yIG9mIHRoZSBzY3JvbGxiYXIgdGh1bWIgKi8NCiAgICAgIGJvcmRlci1yYWRpdXM6IDJweDsNCiAgICAgIC8qIFJvdW5kZWQgdGh1bWIgKi8NCiAgICB9DQoNCiAgICAuY29uc29sZTo6LXdlYmtpdC1zY3JvbGxiYXItdGh1bWI6aG92ZXIgew0KICAgICAgYmFja2dyb3VuZDogIzQyNDI0MjsNCiAgICAgIC8qIENvbG9yIG9mIHRoZSBzY3JvbGxiYXIgdGh1bWIgb24gaG92ZXIgKi8NCiAgICB9DQoNCiAgICAuY29uc29sZTo6LXdlYmtpdC1zY3JvbGxiYXItdHJhY2sgew0KICAgICAgYmFja2dyb3VuZDogIzVhNWY3MzsNCiAgICAgIC8qIENvbG9yIG9mIHRoZSBzY3JvbGxiYXIgdHJhY2sgKi8NCiAgICB9DQoNCiAgICAvKiBEaXNhYmxlIGhvcml6b250YWwgc2Nyb2xsYmFyICovDQogICAgLmNvbnNvbGU6Oi13ZWJraXQtc2Nyb2xsYmFyLXRyYWNrLXBpZWNlOnN0YXJ0IHsNCiAgICAgIGJhY2tncm91bmQ6IHRyYW5zcGFyZW50Ow0KICAgICAgLyogSGlkZSB0aGUgbGVmdCBwYXJ0IG9mIHRoZSBzY3JvbGxiYXIgdHJhY2sgKi8NCiAgICB9DQoNCiAgICAuY29uc29sZTo6LXdlYmtpdC1zY3JvbGxiYXItdHJhY2stcGllY2U6ZW5kIHsNCiAgICAgIGJhY2tncm91bmQ6IHRyYW5zcGFyZW50Ow0KICAgICAgLyogSGlkZSB0aGUgcmlnaHQgcGFydCBvZiB0aGUgc2Nyb2xsYmFyIHRyYWNrICovDQogICAgfQ0KICA8L3N0eWxlPg0KICA8c2NyaXB0PmZ1bmN0aW9uIHBvbGxSYXdEYXRhKCkgew0KICAgICAgc2V0SW50ZXJ2YWwoZnVuY3Rpb24gKCkgew0KICAgICAgICBmZXRjaCgiL3Jhd0RhdGEiKS50aGVuKHJlc3BvbnNlID0+IHJlc3BvbnNlLnRleHQoKSkudGhlbihkYXRhID0+IHsNCiAgICAgICAgICBkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgiWlpaIikudGV4dENvbnRlbnQgPSBkYXRhOw0KICAgICAgICB9DQogICAgICAgICk7DQogICAgICB9LCAxMDAwKTsNCiAgICB9DQogICAgcG9sbFJhd0RhdGEoKTs8L3NjcmlwdD4NCg0KPC9oZWFkPg0KDQo8Ym9keT4NCiAgPGRpdiBjbGFzcz0iY29uc29sZSI+DQogICAgPGRpdiBjbGFzcz0ib3V0cHV0Ij4NCiAgICAgIDxzcGFuPkluaXRpYWxpemluZy4uLjwvc3Bhbj48YnIgLz4NCiAgICAgIDxzcGFuIGNsYXNzPSJncmVlbiI+MC4wMDAybXMgb2shPC9zcGFuPjxiciAvPg0KICAgICAgPHNwYW4gY2xhc3M9InNlcGVyYXRvciI+PT0gPT0gPT0gPT0gPT0gPT0gPT0gPT0gPT0gPT0gPT0gPT0gPT0gPT08L3NwYW4+PC9icj4NCiAgICAgIDxwcmUgY29udGVudGVkaXRhYmxlPSJmYWxzZSI+ICAgIF9fICBfX19fX19fICAgICAgICAgICAgXyAgICAgICAgICAgICAgICAgICAgIF9fX19fXyAgICAgICAgICAgICAgICAgICAgICAgX18gICANCiAgICAgICAvICB8LyAgLyBfXyBcX19fICBfX19fXyhfKV9fXyBfX19fXyAgX19fX18gICAvIF9fX18vX19fICBfX19fICBfX19fX19fX18gIC8gL19fIA0KICAgICAgLyAvfF8vIC8gLyAvIC8gXyBcLyBfX18vIC8gX18gYC8gX18gXC8gX19fLyAgLyAvICAgLyBfXyBcLyBfXyBcLyBfX18vIF9fIFwvIC8gXyBcDQogICAgIC8gLyAgLyAvIC9fLyAvICBfXyhfXyAgKSAvIC9fLyAvIC8gLyAoX18gICkgIC8gL19fXy8gL18vIC8gLyAvIChfXyAgKSAvXy8gLyAvICBfXy8NCiAgICAvXy8gIC9fL19fX19fL1xfX18vX19fXy9fL1xfXywgL18vIC9fL19fX18vICAgXF9fX18vXF9fX18vXy8gL18vX19fXy9cX19fXy9fL1xfX18vPC9wcmU+PC9icj4NCiAgICAgIDxzcGFuIGNsYXNzPSJzZXBlcmF0b3IiPj09ID09ID09ID09ID09ID09ID09ID09ID09ID09ID09ID09ID09ID09ID09ID09ID09ID09PC9zcGFuPjwvYnI+DQogICAgICA8c3Bhbj5Ib3BlIHlvdSBoYXZlIGZ1biBkaXNjb3ZlcmluZyBhbGwgdGhlIDxzcGFuIGNsYXNzPSJyZWQiPmhpZGRlbiBnZW1zPC9zcGFuPiE8L3NwYW4+DQogICAgICA8ZGl2IGlkPSJaWloiPjwvZGl2Pg0KICAgICAgPC9icj4NCiAgICA8L2Rpdj4NCiAgPC9kaXY+DQo8L2JvZHk+DQoNCjwvaHRtbD4=";
-  server.send(200, "", html);
+
+  // Base64-decode the HTML content
+  
+
+  //server.sendHeader("Location", base64Data);
+  server.send(200, "text/html", htmlContent, sizeof(htmlContent));
 }
 
 void handleRawData() {
@@ -19,19 +25,84 @@ void handleRawData() {
   server.send(200, "text/plain", rawData);
 }
 
-void setup() {
-  Serial.begin(115200);
-
-  // Connect to the "Storm PTCL" WiFi network with the specified password
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi...");
+void writeData() {
+  File file = LittleFS.open("/myFile.txt", "w");
+  if (!file) {
+    Serial.println("Failed to open file for writing");
+    return;
   }
 
-  Serial.println("Connected to WiFi");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
+  String data = "Hello, ESP8266!";
+  file.print(data);
+  file.close();
+  Serial.println("Data written to file.");
+}
+
+void readData() {
+  File file = LittleFS.open("/myFile.txt", "r");
+  if (!file) {
+    Serial.println("Failed to open file for reading");
+    return;
+  }
+
+  String data = file.readString();
+  file.close();
+  Serial.print("Data read from file: ");
+  Serial.println(data);
+}
+
+
+void listFilesAndSpace() {
+  Serial.println("Listing files and calculating space used:");
+  Dir dir = LittleFS.openDir("/");
+  while (dir.next()) {
+    File entry = dir.openFile("r");
+    String fileName = entry.name();
+    int fileSize = entry.size();
+    Serial.print("File: ");
+    Serial.print(fileName);
+    Serial.print(" - Size: ");
+    Serial.print(fileSize);
+    Serial.println(" bytes");
+    entry.close();
+  }
+
+}
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println();
+
+  if (0) {
+    // Connect to the "Storm PTCL" WiFi network with the specified password
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(1000);
+      Serial.println("Connecting to WiFi...");
+    }
+    Serial.println("Connected to WiFi");
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
+
+  } else {
+    // Configure the Access Point
+    WiFi.softAP("Test", "");
+
+    // Get the IP address of the Access Point
+    IPAddress apIP = WiFi.softAPIP();
+    Serial.print("Access Point IP address: ");
+    Serial.println(apIP);
+  }
+
+  if (!LittleFS.begin()) {
+    Serial.println("LittleFS initialization failed!");
+    return;
+  }
+  Serial.println("LittleFS initialized successfully.");
+
+  //writeData();
+  //readData();
+  listFilesAndSpace();
 
   server.on("/", HTTP_GET, handleRoot);
   server.on("/rawData", HTTP_GET, handleRawData);

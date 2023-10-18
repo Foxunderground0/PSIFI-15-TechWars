@@ -1,7 +1,8 @@
+
 function pollRawData() {
     setInterval(function () {
-        fetch('192.168.1.14/rawData').then(response => response.text()).then(data => {
-            document.getElementById('ZZZ').textContent = data;
+        fetch('/rawData').then(response => response.text()).then(data => {
+            document.getElementById('data').innerHTML += "&gt"+ data + "<br>";
         }
         );
     }, 1000);
