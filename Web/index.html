@@ -2,18 +2,19 @@
 <html>
 
 <head>
-    <link rel="stylesheet" href="style.css">
-    <script src="script.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js"></script>
 
 </head>
 
 <body>
-    <div class="console">
-        <div class="output">
-            <span>Initializing...</span><br />
-            <span class="bootTime">0.0002ms ok!</span><br />
-            <span class="seperator">== == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==</span>
-            <pre class="asciibanner" contenteditable="false" style="font-family: monospace;"> d888888P                   dP       dP   dP   dP  .d888888                                                                      
+  <div class="console">
+    <div class="output">
+      <span>Initializing...</span><br />
+      <span class="bootTime">0.0002ms ok!</span><br />
+      <span class="seperator">== == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
+        == == == == == ==</span>
+      <pre class="asciibanner" contenteditable="false" style="font-family: monospace;"> d888888P                   dP       dP   dP   dP  .d888888                                                                      
     88                      88       88   88   88 d8'    88                    
     88    .d8888b. .d8888b. 88d888b. 88  .8P  .8P 88aaaaa88a 88d888b. .d8888b. 
     88    88ooood8 88'  `"" 88'  `88 88  d8'  d8' 88     88  88'  `88 Y8ooooo. 
@@ -27,74 +28,76 @@
  Y8.   .88 88     88   88     88 88    .8P    88             88       88    88.  ... 88       88  88  88 88 88    88 88.  .88 88 
   Y88888P' 88     88   dP     dP 8888888P     dP       `88888P'       dP    `88888P' dP       dP  dP  dP dP dP    dP `88888P8 dP 
 </pre></br>
-            <span class="seperator">== == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==</span></br>
-            <span>Hope you have fun discovering all the </span><span class="red">hidden gems</span>!
-            <div id="data"></div>
-            </br>
-        </div>
+      <span class="seperator">== == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
+        == == == == == ==</span></br>
+      <span>Hope you have fun discovering all the </span><span class="red">hidden gems</span>!
+      <div id="data"></div>
+      </br>
     </div>
+  </div>
 
-    <script>
-        const outputDiv = document.querySelector(".output");
-        const elementsToType = outputDiv.cloneNode(true).childNodes;
-        outputDiv.innerHTML = "";
-      
-        let currentIndex = 0;
-      
-        function typeNextElement() {
-          if (currentIndex < elementsToType.length) {
-            const currentElement = elementsToType[currentIndex].cloneNode(true);
-            outputDiv.appendChild(currentElement);
-            currentIndex++;
-      
-            if (currentElement.nodeType === Node.ELEMENT_NODE) {
-              // If it's an element node (e.g., <pre>), type its text content
-              typeTextContent(currentElement, typeNextElement);
-            } else {
-              // If it's not an element node, proceed to the next element
-              typeNextElement();
-            }
-          }
+  <script>
+    const outputDiv = document.querySelector(".output");
+    const elementsToType = outputDiv.cloneNode(true).childNodes;
+    outputDiv.innerHTML = "";
+
+    let currentIndex = 0;
+
+    function typeNextElement() {
+      if (currentIndex < elementsToType.length) {
+        const currentElement = elementsToType[currentIndex].cloneNode(true);
+        outputDiv.appendChild(currentElement);
+        currentIndex++;
+
+        if (currentElement.nodeType === Node.ELEMENT_NODE) {
+          // If it's an element node (e.g., <pre>), type its text content
+          typeTextContent(currentElement, typeNextElement);
+        } else {
+          // If it's not an element node, proceed to the next element
+          typeNextElement();
         }
-      
-        function typeTextContent(element, callback) {
-          let textIndex = 0;
-          let typingSpeed = 20; // Default typing speed
-      
-          // Check if the element has the class "yellow" and set a higher typing speed
-          if (element.classList.contains("asciibanner")) {
-            typingSpeed = 1; 
-          }
-      
-          if (element.classList.contains("seperator")) {
-            typingSpeed = 10; 
-          }
+      }
+    }
 
-          if (element.classList.contains("bootTime")) {
-            fetch('/rawData').then(response => response.text()).then(data => {
-            element.textContent = data});
-            typingSpeed = 400; 
-          }
+    function typeTextContent(element, callback) {
+      let textIndex = 0;
+      let typingSpeed = 20; // Default typing speed
 
-          const textToType = element.textContent;
-          element.textContent = "";
-          
-          function typeChar() {
-            if (textIndex < textToType.length) {
-              element.textContent += textToType.charAt(textIndex);
-              textIndex++;
-              setTimeout(typeChar, typingSpeed); // Adjust typing speed here
-            } else {
-              // When text is fully typed, call the callback to type the next element
-              callback();
-            }
-          }
-      
-          typeChar();
+      // Check if the element has the class "yellow" and set a higher typing speed
+      if (element.classList.contains("asciibanner")) {
+        typingSpeed = 1;
+      }
+
+      if (element.classList.contains("seperator")) {
+        typingSpeed = 10;
+      }
+
+      if (element.classList.contains("bootTime")) {
+        fetch('/bootTime').then(response => response.text()).then(data => {
+          element.textContent = data + ".00132ms ok!"
+        });
+        typingSpeed = 400;
+      }
+
+      const textToType = element.textContent;
+      element.textContent = "";
+
+      function typeChar() {
+        if (textIndex < textToType.length) {
+          element.textContent += textToType.charAt(textIndex);
+          textIndex++;
+          setTimeout(typeChar, typingSpeed); // Adjust typing speed here
+        } else {
+          // When text is fully typed, call the callback to type the next element
+          callback();
         }
-      
-        typeNextElement();
-      </script>
+      }
+
+      typeChar();
+    }
+
+    typeNextElement();
+  </script>
 </body>
 
 </html>
