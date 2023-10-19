@@ -30,9 +30,9 @@
 </pre></br>
       <span class="seperator">== == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
         == == == == == ==</span></br>
-      <span>Hope you have fun discovering all the </span><span class="red">hidden gems</span>!
-      <div id="data"></div>
-      </br>
+      <span>Hope you have fun discovering all the </span><span class="red">hidden gems</span>!<br>
+      <div id="data" class="data">&gt</div>
+      <textarea class="textarea" id="input" cols="125" rows="1">asdasdasd</textarea>
     </div>
   </div>
 
@@ -78,7 +78,13 @@
         });
         typingSpeed = 400;
       }
+      
+      if (element.classList.contains("textarea")) {
+        enter_ok = 1;
+      }
 
+      typingSpeed = 0; // Default typing speed
+      
       const textToType = element.textContent;
       element.textContent = "";
 

@@ -9,7 +9,7 @@ const char* password = "35348E80687?!";
 
 ESP8266WebServer server(80);
 
-String rawData = "";
+String rawData = "36633";
 void handleRoot() {
   // Create a simple HTML page that displays the rawData and updates it every second
 
@@ -25,53 +25,20 @@ void handleRawData() {
   server.send(200, "text/plain", rawData);
 }
 
+void handleCMD() {
+  Serial.println(server.arg("command"));
+  server.send(200, "text/plain", "BASED");
+  digitalWrite(D1, HIGH);  // turn the LED on (HIGH is the voltage level)
+  delay(50);                      // wait for a second
+  digitalWrite(D1, LOW);   // turn the LED off by making the voltage LOW
+  
+}
+
 void bootTime() {
   // Respond with the current value of rawData
   server.send(200, "text/plain", String(millis()));
 }
 
-void writeData() {
-  File file = LittleFS.open("/myFile.txt", "w");
-  if (!file) {
-    Serial.println("Failed to open file for writing");
-    return;
-  }
-
-  String data = "Hello, ESP8266!";
-  file.print(data);
-  file.close();
-  Serial.println("Data written to file.");
-}
-
-void readData() {
-  File file = LittleFS.open("/myFile.txt", "r");
-  if (!file) {
-    Serial.println("Failed to open file for reading");
-    return;
-  }
-
-  String data = file.readString();
-  file.close();
-  Serial.print("Data read from file: ");
-  Serial.println(data);
-}
-
-
-void listFilesAndSpace() {
-  Serial.println("Listing files and calculating space used:");
-  Dir dir = LittleFS.openDir("/");
-  while (dir.next()) {
-    File entry = dir.openFile("r");
-    String fileName = entry.name();
-    int fileSize = entry.size();
-    Serial.print("File: ");
-    Serial.print(fileName);
-    Serial.print(" - Size: ");
-    Serial.print(fileSize);
-    Serial.println(" bytes");
-    entry.close();
-  }
-}
 
 long getStrengthOfSSID(String ssid_to_scan) {
   int numNetworks = WiFi.scanNetworks();
@@ -91,7 +58,10 @@ void setup() {
   Serial.begin(115200);
   Serial.println();
 
-  if (1) {
+  pinMode(D1, OUTPUT);
+  digitalWrite(D1, LOW);
+
+  if (0) {
     // Connect to the "Storm PTCL" WiFi network with the specified password
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
@@ -118,18 +88,15 @@ void setup() {
   }
   Serial.println("LittleFS initialized successfully.");
 
-  //writeData();
-  //readData();
-  listFilesAndSpace();
-
   server.on("/", HTTP_GET, handleRoot);
   server.on("/rawData", HTTP_GET, handleRawData);
+  server.on("/entered", HTTP_GET, handleCMD);
   server.on("/bootTime", HTTP_GET, bootTime);
 
   server.begin();
 }
 
 void loop() {
-  rawData = String(getStrengthOfSSID("HP-LASERJET-1881"));
+  //rawData = String(getStrengthOfSSID("HP-LASERJET-1881"));
   server.handleClient();
 }
