@@ -12,11 +12,13 @@ inline void handleDialogReady(ESP8266WebServer &server, bool &dialogReady) {
   dialogReady = false;
 }
 
-inline void handleAllDialogue(ESP8266WebServer &server, String allDialogue) {
+inline void handleAllDialogue(ESP8266WebServer &server, String allDialogue, bool &scene_dialogue_completed) {
   server.send(200, "text/plain", allDialogue);
+  scene_dialogue_completed = true;
 }
 
-inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[2][4], const int &buzzer_pin, int &story_scene, int &scene_dialogue_count, int dialogues_count[], bool &dialogReady) {
+inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[2][4], const int &buzzer_pin, int &story_scene, int &scene_dialogue_count, int dialogues_count[], bool &dialogReady, bool &scene_dialogue_completed) {
+  scene_dialogue_completed = false;
   String response = dialogues[story_scene][scene_dialogue_count];
   int num_of_characters = response.length();
   server.send(200, "text/plain", response);
@@ -24,7 +26,7 @@ inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[2
   unsigned long startTime = millis();
   unsigned long elapsedTime = 0;  // Initialize elapsed time to zero
 
-  while (elapsedTime < num_of_characters * 60) {
+  while (elapsedTime < num_of_characters * 65) {
     unsigned long currentTime = millis();
     elapsedTime = currentTime - startTime;
 
@@ -32,7 +34,7 @@ inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[2
     int randomDelay = random(10, 200);        // Random delay between 10ms and 500ms
     int randomToneTime = random(10, 200);        // Random delay between 10ms and 500ms
 
-    if (elapsedTime + randomDelay < num_of_characters * 60) {
+    if (elapsedTime + randomDelay < num_of_characters * 65) {
       // Play a tone with the random frequency
       tone(buzzer_pin, randomFrequency, randomToneTime);  // Play the tone for 50ms
       delay(randomDelay);                     // Add the random delay
@@ -52,6 +54,7 @@ inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[2
     story_scene++;
     scene_dialogue_count = 0;
     dialogReady = false;
+    scene_dialogue_completed = true;
   } else {
     dialogReady = true;
   }
@@ -68,7 +71,7 @@ inline void handleCMD(ESP8266WebServer &server, const String &teamName, const in
     response = "stats : Gives System Info";
   } else if (command == "stats") {
     response =
-      "<div style=\"white-space: pre;\"><span class=\"red\">                                ,(###########                    </span>  | <span class=\"blue\">System Uptime:</span> " + String(millis()) + "." + String(micros()).substring(String(micros()).length() - 3) + " ms <br>" + "<span class=\"red\">                    ######(##         ############               </span>  | <span class=\"blue\">User:</span> " + teamName + "<br>" + "<span class=\"red\">          ###    ##################(      *(#########            </span>  | <span class=\"blue\">IP:</span> " + String(WiFi.localIP().toString().c_str()) + "<br>" + "<span class=\"red\">        ###      ######################(      #########,         </span>  | <span class=\"blue\">Resolution:</span> 130x100 <br>" + "<span class=\"red\">       ##.              #(#################(     ########        </span>  | <span class=\"blue\">CPU:</span> Tensilica L106 <br>" + "<span class=\"red\">     ,##                       .##############.    (######(      </span>  | <span class=\"blue\">Architecture:</span> 32-bit RISC <br>" + "<span class=\"red\">     ##     #################       ############(    (######     </span>  | <span class=\"blue\">Frequency:</span> 160 MHz <br>" + "<span class=\"red\">    (#   ,######################(#     ###########(    ######    </span>  | <span class=\"blue\">Flash:</span> " + String(ESP.getFreeSketchSpace()) + " / 4,194,304 <br>" + "<span class=\"red\">   ###  #############################     ###########   .####*   </span>  | <span class=\"blue\">Free Heap:</span> " + String(ESP.getFreeHeap()) + "<br>" + "<span class=\"red\">   ##   ########,        ##############/    #########(    ####   </span>  | <span class=\"blue\">Kernel:</span>  Fox-OS <br>" + "<span class=\"red\">   ##   ##########(#(        .(##########(    #########    ###   </span>  | <br>" + "<span class=\"red\">   ##    ##################      #########(    #########    #    </span>  | <br>" + "<span class=\"red\">   ###     ###################     #########*   ########(        </span>  | <br>" + "<span class=\"red\">    ##        ,#################    (########/   #########       </span>  | <br>" + "<span class=\"red\">    .##                ###########   (########    ########,      </span>  | <br>" + "<span class=\"red\">     *##                 ##########   #########   #########      </span>  | <br>" + "<span class=\"red\">       #(    .#######,    /########    ########   .#####(.       </span>  | <br>" + "<span class=\"red\">        (#(  #########     ########    ########    ####/         </span>  | <br>" + "<span class=\"red\">          ##( #######     (########    #######(                  </span>  | <br>" + "<span class=\"red\">            ####         #########(   #########       (##        </span>  | <br>" + "<span class=\"red\">               (###       ########    #######      ####          </span>  | <br>" + "<span class=\"red\">                  .#####                      #####              </span>  | <br>" + "<span class=\"red\">                        (#######(###########(                    </span>  | </div>";
+      "<br><div style=\"white-space: pre;\"><span class=\"red\">                                ,(###########                    </span>  | <span class=\"blue\">System Uptime:</span> " + String(millis()) + "." + String(micros()).substring(String(micros()).length() - 3) + " ms <br>" + "<span class=\"red\">                    ######(##         ############               </span>  | <span class=\"blue\">User:</span> " + teamName + "<br>" + "<span class=\"red\">          ###    ##################(      *(#########            </span>  | <span class=\"blue\">IP:</span> " + String(WiFi.localIP().toString().c_str()) + "<br>" + "<span class=\"red\">        ###      ######################(      #########,         </span>  | <span class=\"blue\">Resolution:</span> 130x100 <br>" + "<span class=\"red\">       ##.              #(#################(     ########        </span>  | <span class=\"blue\">CPU:</span> Tensilica L106 <br>" + "<span class=\"red\">     ,##                       .##############.    (######(      </span>  | <span class=\"blue\">Architecture:</span> 32-bit RISC <br>" + "<span class=\"red\">     ##     #################       ############(    (######     </span>  | <span class=\"blue\">Frequency:</span> 160 MHz <br>" + "<span class=\"red\">    (#   ,######################(#     ###########(    ######    </span>  | <span class=\"blue\">Flash:</span> " + String(ESP.getFreeSketchSpace()) + " / 4,194,304 <br>" + "<span class=\"red\">   ###  #############################     ###########   .####*   </span>  | <span class=\"blue\">Free Heap:</span> " + String(ESP.getFreeHeap()) + "<br>" + "<span class=\"red\">   ##   ########,        ##############/    #########(    ####   </span>  | <span class=\"blue\">Kernel:</span>  Fox-OS <br>" + "<span class=\"red\">   ##   ##########(#(        .(##########(    #########    ###   </span>  | <br>" + "<span class=\"red\">   ##    ##################      #########(    #########    #    </span>  | <br>" + "<span class=\"red\">   ###     ###################     #########*   ########(        </span>  | <br>" + "<span class=\"red\">    ##        ,#################    (########/   #########       </span>  | <br>" + "<span class=\"red\">    .##                ###########   (########    ########,      </span>  | <br>" + "<span class=\"red\">     *##                 ##########   #########   #########      </span>  | <br>" + "<span class=\"red\">       #(    .#######,    /########    ########   .#####(.       </span>  | <br>" + "<span class=\"red\">        (#(  #########     ########    ########    ####/         </span>  | <br>" + "<span class=\"red\">          ##( #######     (########    #######(                  </span>  | <br>" + "<span class=\"red\">            ####         #########(   #########       (##        </span>  | <br>" + "<span class=\"red\">               (###       ########    #######      ####          </span>  | <br>" + "<span class=\"red\">                  .#####                      #####              </span>  | <br>" + "<span class=\"red\">                        (#######(###########(                    </span>  | </div>";
   } else {
     response = "-bash: " + command + ": command not found";
   }
