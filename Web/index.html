@@ -31,8 +31,10 @@
       <span class="seperator">== == == == == == == == == == == == == == == == == == == == == == == == == == == == == ==
         == == == == == ==</span></br>
       <span>Hope you have fun discovering all the </span><span class="red">hidden gems</span>!<br>
-      <div id="data" class="data">&gt</div>
-      <textarea class="textarea" id="input" cols="125" rows="1">asdasdasd</textarea>
+      <div id="pastDialogue" class="purple"></div>
+      <div id="data" class="data" style="color: hwb(60 72% 4%);"></div><br>
+      <div class="arrow">&gt</div>
+      <textarea class="textarea" id="input" cols="125" rows="1"></textarea>
     </div>
   </div>
 
@@ -59,7 +61,7 @@
       }
     }
 
-    function typeTextContent(element, callback) {
+    async function typeTextContent(element, callback) {
       let textIndex = 0;
       let typingSpeed = 20; // Default typing speed
 
@@ -73,18 +75,18 @@
       }
 
       if (element.classList.contains("bootTime")) {
-        fetch('/bootTime').then(response => response.text()).then(data => {
-          element.textContent = data + ".00132ms ok!"
+        await fetch('/bootTime').then(response => response.text()).then(data => {
+          element.textContent = data + " ms ok!"
         });
         typingSpeed = 400;
       }
-      
+
       if (element.classList.contains("textarea")) {
         enter_ok = 1;
       }
 
-      typingSpeed = 0; // Default typing speed
-      
+      //typingSpeed = 0;
+
       const textToType = element.textContent;
       element.textContent = "";
 
@@ -99,7 +101,7 @@
         }
       }
 
-      typeChar();
+      await typeChar();
     }
 
     typeNextElement();

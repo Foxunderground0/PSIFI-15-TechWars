@@ -1,8 +1,10 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
-#include <base64.h>
-#include <LittleFS.h>
 #include "webpage.h"
+#include "web_handler_functions.h"
+
+const int buzzer_pin = D2;
+const int button_pin = D1;
 
 const char* ssid = "Storm PTCL";
 const char* password = "35348E80687?!";
@@ -10,34 +12,18 @@ const char* password = "35348E80687?!";
 ESP8266WebServer server(80);
 
 String rawData = "36633";
-void handleRoot() {
-  // Create a simple HTML page that displays the rawData and updates it every second
+String teamName = "Dev Board";
+bool dialogReady = true;
+int story_scene = 0;
+int scene_dialogue_count = 0;
 
-  // Base64-decode the HTML content
+String pastDialogue = "--Insert past dialogue here--";
 
-
-  //server.sendHeader("Location", base64Data);
-  server.send(200, "text/html", htmlContent, sizeof(htmlContent));
-}
-
-void handleRawData() {
-  // Respond with the current value of rawData
-  server.send(200, "text/plain", rawData);
-}
-
-void handleCMD() {
-  Serial.println(server.arg("command"));
-  server.send(200, "text/plain", "BASED");
-  digitalWrite(D1, HIGH);  // turn the LED on (HIGH is the voltage level)
-  delay(50);                      // wait for a second
-  digitalWrite(D1, LOW);   // turn the LED off by making the voltage LOW
-  
-}
-
-void bootTime() {
-  // Respond with the current value of rawData
-  server.send(200, "text/plain", String(millis()));
-}
+int dialogues_count[] = {4,2};
+String dialogues[][4] PROGMEM = {
+  {"Well, well, well, look who's decided to join the fun. I'm Cardy, your oh-so-charming robotic companion for this little escapade. Consider yourselves lucky.", "In case you haven't figured it out, this is no ordinary scavenger hunt. You're in for a challenge, or two, or a dozen. Don't expect any hand-holding, my friends. You're on your own here.", "I'll be your source of cryptic clues and enigmatic riddles. But whether you can actually solve them is another matter entirely. You see, I've got a reputation for being a bit, shall we say, sarcastic.", "So, gather your wit, grit, and maybe a bit of luck. It's time to test your mettle and see if you can keep up. Just remember, you asked for this. Let the games begin, and may the snarkiest team win!"},
+  {"Second scene dialogue 1", "Second scene dialogue 2", "Second scene dialogue 3", "Second scene dialogue 4"}
+};
 
 
 long getStrengthOfSSID(String ssid_to_scan) {
@@ -58,16 +44,22 @@ void setup() {
   Serial.begin(115200);
   Serial.println();
 
-  pinMode(D1, OUTPUT);
-  digitalWrite(D1, LOW);
+  pinMode(button_pin, INPUT_PULLUP);
+  pinMode(buzzer_pin, OUTPUT);
+  
+  digitalWrite(buzzer_pin, LOW);
 
-  if (0) {
+  randomSeed(analogRead(A0));
+  
+  if (1) {
     // Connect to the "Storm PTCL" WiFi network with the specified password
     WiFi.begin(ssid, password);
+    Serial.print("Connecting to WiFi ");
     while (WiFi.status() != WL_CONNECTED) {
-      delay(1000);
-      Serial.println("Connecting to WiFi...");
+      Serial.print(".");
+      delay(100);
     }
+    Serial.println(".");
     Serial.println("Connected to WiFi");
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
@@ -82,21 +74,42 @@ void setup() {
     Serial.println(apIP);
   }
 
-  if (!LittleFS.begin()) {
-    Serial.println("LittleFS initialization failed!");
-    return;
-  }
-  Serial.println("LittleFS initialized successfully.");
+  server.on("/", HTTP_GET, [&]() {
+    handleRoot(server);
+  });
 
-  server.on("/", HTTP_GET, handleRoot);
-  server.on("/rawData", HTTP_GET, handleRawData);
-  server.on("/entered", HTTP_GET, handleCMD);
-  server.on("/bootTime", HTTP_GET, bootTime);
+  server.on("/bootTime", HTTP_GET, [&]() {
+    handleBootTime(server);
+  });
+
+  server.on("/entered", HTTP_GET, [&]() {
+    handleCMD(server, teamName, buzzer_pin);
+  });
+
+  server.on("/rawData", HTTP_GET, [&]() {
+    handleRawData(server, rawData);
+  });
+
+  server.on("/dialogReady", HTTP_GET, [&]() {
+    handleDialogReady(server, dialogReady);
+  });
+
+  server.on("/pastDialogue", HTTP_GET, [&]() {
+    handleAllDialogue(server, pastDialogue);
+  });
+
+  server.on("/latestDialogue", HTTP_GET, [&]() {
+    handleLatestDialogue(server, dialogues, buzzer_pin, story_scene, scene_dialogue_count, dialogues_count, dialogReady);
+  });
 
   server.begin();
+  //dialogReady = true;
 }
 
 void loop() {
   //rawData = String(getStrengthOfSSID("HP-LASERJET-1881"));
+  if(digitalRead(button_pin) == LOW) {
+    dialogReady = true;
+  }
   server.handleClient();
 }
