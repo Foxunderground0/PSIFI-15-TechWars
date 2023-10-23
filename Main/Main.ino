@@ -2,6 +2,15 @@
 #include <ESP8266WebServer.h>
 #include "webpage.h"
 #include "web_handler_functions.h"
+#include "ESP8266TimerInterrupt.h"
+
+// Select a Timer Clock
+#define USING_TIM_DIV1 false    // for shortest and most accurate timer
+#define USING_TIM_DIV16 true    // for medium time and medium accurate timer
+#define USING_TIM_DIV256 false  // for longest timer but least accurate. Default
+
+
+long TIMER_INTERVAL_MS = 4000;
 
 const int buzzer_pin = D2;
 const int button_pin = D1;
@@ -9,12 +18,18 @@ const int button_pin = D1;
 const char* ssid = "Storm PTCL";
 const char* password = "35348E80687?!";
 
-ESP8266WebServer server(80);
+long long last_beep_millis = 0;
+long long threshold_millis = 0;
+
+long long on_beep = 10;
+long long off_beep = 1000;
 
 String rawData = "36633";
 String teamName = "Dev Board";
 bool dialogReady = true;
 bool scene_dialogue_completed = false;
+bool scan_for_rssi = true;
+
 int story_scene = 0;
 int scene_dialogue_count = 0;
 
@@ -26,6 +41,10 @@ String dialogues[][4] = {
   { "Second scene dialogue 1", "Second scene dialogue 2", "Second scene dialogue 3", "Second scene dialogue 4" }
 };
 
+// Init Server Object
+ESP8266WebServer server(80);
+// Init ESP8266 timer 1
+ESP8266Timer ITimer;
 
 int getStrengthOfSSID(String ssid_to_scan) {
   int numNetworks = WiFi.scanNetworks();
@@ -38,6 +57,26 @@ int getStrengthOfSSID(String ssid_to_scan) {
     }
   }
   return -127;
+}
+
+double DBToLinear(long long val){
+  return (double) pow(10, val / 10.0);
+}
+
+bool isBeeping = false;
+
+void IRAM_ATTR beep() {
+  if (millis() - last_beep_millis > threshold_millis) {
+    isBeeping = !isBeeping;
+    digitalWrite(buzzer_pin, isBeeping);
+    last_beep_millis = millis();
+    isBeeping ? threshold_millis = on_beep : threshold_millis = off_beep;
+  }
+}
+
+double mapDouble(double x, double in_min, double in_max, double out_min, double out_max)
+{
+  return (double)(x - in_min) * (out_max - out_min) / (double)(in_max - in_min) + out_min;
 }
 
 void setup() {
@@ -74,6 +113,14 @@ void setup() {
     Serial.println(apIP);
   }
 
+  if (ITimer.attachInterruptInterval(1000, beep)) {
+    Serial.print("Starting ITimer OK");
+  } else {
+    Serial.println("Can't set ITimer correctly");
+  }
+
+  //ITimer.disableTimer();
+
   server.on("/", HTTP_GET, [&]() {
     handleRoot(server);
   });
@@ -91,7 +138,7 @@ void setup() {
   });
 
   server.on("/dialogReady", HTTP_GET, [&]() {
-    handleDialogReady(server, dialogReady);
+    handleDialogReady(server, dialogReady, scene_dialogue_completed);
   });
 
   server.on("/pastDialogue", HTTP_GET, [&]() {
@@ -105,47 +152,34 @@ void setup() {
   server.begin();
   //dialogReady = true;
 }
-bool isBeeping = true;
-
-void beep(int pin, unsigned int frequency, unsigned long duration_on, unsigned long duration_off) {
-  if (isBeeping) {
-    tone(pin, frequency);
-    delay(duration_on);
-    noTone(pin);
-    delay(duration_off);
-  }
-}
 
 void loop() {
   if (scene_dialogue_completed == true) {
-    int signalStrength = getStrengthOfSSID("HP-LASERJET-1881");
-    Serial.println(signalStrength);
+    if (scan_for_rssi == true) {
+      //ITimer.enableTimer();
+      int signalStrength = getStrengthOfSSID("HP-LASERJET-1881");
 
-    int frequency = map(signalStrength, -127, -20, 100, 2000);  // Map signal strength to frequency
-    int duration_on = map(signalStrength, -127, -20, 500, 10);    // Map signal strength to duration
-    int duration_off = map(signalStrength, -127, -20, 5000, 0);    // Map signal strength to duration
+      long duration = mapDouble(DBToLinear(max(signalStrength, -80)), DBToLinear(-80), DBToLinear(-20), 2000, 1);  // Map signal strength to duration
+      off_beep = duration;
+      
+      //ITimer.setInterval(duration * 1000, beep);
+      Serial.println(duration);
 
-    if (signalStrength <= -20) {
-      // Start beeping
-      //isBeeping = true;
-    } else {
-      // Stop beeping when signal strength is greater than -20
-      isBeeping = false;
+
+      if (signalStrength <= -20) {
+        // Start beeping
+        //isBeeping = true;
+      } else {
+        // Stop beeping when signal strength is greater than -20
+        isBeeping = false;
+        dialogReady = true;
+        scan_for_rssi = false;
+      }
+    }
+
+    if (digitalRead(button_pin) == LOW) {
       dialogReady = true;
     }
-
-    if (isBeeping) {
-      beep(buzzer_pin, frequency, duration_on, duration_off);
-    } else {
-      // Stop beeping
-      noTone(buzzer_pin);
-    }
   }
-
-  if (digitalRead(button_pin) == LOW) {
-    // Button pressed, trigger beeping
-    isBeeping = true;
-  }
-
   server.handleClient();
 }

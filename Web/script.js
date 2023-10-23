@@ -85,7 +85,7 @@ function getCardyChat() {
                     }
                 }
             });
-    }, 1000);
+    }, 100);
 }
 
 function typeDialogue(id, data) {

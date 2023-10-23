@@ -7,8 +7,9 @@ inline void handleBootTime(ESP8266WebServer &server) {
   server.send(200, "text/plain", String(millis()) + "." + String(micros()).substring(String(micros()).length() - 3));
 }
 
-inline void handleDialogReady(ESP8266WebServer &server, bool &dialogReady) {
+inline void handleDialogReady(ESP8266WebServer &server, bool &dialogReady, bool &scene_dialogue_completed) {
   server.send(200, "text/plain", (dialogReady ? "1" : "0"));
+  scene_dialogue_completed = !dialogReady;  // Update the scene_dialogue_completed based on dialogReady
   dialogReady = false;
 }
 
@@ -32,12 +33,12 @@ inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[2
 
     int randomFrequency = random(300, 2000);  // Random frequency between 300Hz and 1000Hz
     int randomDelay = random(10, 200);        // Random delay between 10ms and 500ms
-    int randomToneTime = random(10, 200);        // Random delay between 10ms and 500ms
+    int randomToneTime = random(10, 200);     // Random delay between 10ms and 500ms
 
     if (elapsedTime + randomDelay < num_of_characters * 65) {
       // Play a tone with the random frequency
       tone(buzzer_pin, randomFrequency, randomToneTime);  // Play the tone for 50ms
-      delay(randomDelay);                     // Add the random delay
+      delay(randomDelay);                                 // Add the random delay
     }
   }
 
