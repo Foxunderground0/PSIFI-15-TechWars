@@ -18,10 +18,10 @@ inline void handleAllDialogue(ESP8266WebServer &server, String allDialogue, bool
   scene_dialogue_completed = true;
 }
 
-inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[2][4], const int &buzzer_pin, int &story_scene, int &scene_dialogue_count, int dialogues_count[], bool &dialogReady, bool &scene_dialogue_completed) {
+inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[][20], const int &buzzer_pin, long long &story_scene, long long &scene_dialogue_count, int dialogues_count[], bool &dialogReady, bool &scene_dialogue_completed) {
   scene_dialogue_completed = false;
   String response = dialogues[story_scene][scene_dialogue_count];
-  int num_of_characters = response.length();
+  long long num_of_characters = response.length();
   server.send(200, "text/plain", response);
 
   unsigned long startTime = millis();
