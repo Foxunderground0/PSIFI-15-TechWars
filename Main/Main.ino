@@ -59,8 +59,8 @@ int getStrengthOfSSID(String ssid_to_scan) {
   return -127;
 }
 
-double DBToLinear(long long val){
-  return (double) pow(10, val / 10.0);
+double DBToLinear(long long val) {
+  return (double)pow(10, val / 10.0);
 }
 
 bool isBeeping = false;
@@ -90,7 +90,7 @@ void setup() {
 
   randomSeed(analogRead(A0));
 
-  if (0) {
+  if (1) {
     // Connect to the "Storm PTCL" WiFi network with the specified password
     WiFi.begin(ssid, password);
     Serial.print("Connecting to WiFi ");
@@ -123,31 +123,31 @@ void setup() {
 
   server.on("/", HTTP_GET, [&]() {
     handleRoot(server);
-  });
+    });
 
   server.on("/bootTime", HTTP_GET, [&]() {
     handleBootTime(server);
-  });
+    });
 
   server.on("/entered", HTTP_GET, [&]() {
     handleCMD(server, teamName, buzzer_pin);
-  });
+    });
 
   server.on("/rawData", HTTP_GET, [&]() {
     handleRawData(server, rawData);
-  });
+    });
 
   server.on("/dialogReady", HTTP_GET, [&]() {
     handleDialogReady(server, dialogReady, scene_dialogue_completed);
-  });
+    });
 
   server.on("/pastDialogue", HTTP_GET, [&]() {
     handleAllDialogue(server, pastDialogue, scene_dialogue_completed);
-  });
+    });
 
   server.on("/latestDialogue", HTTP_GET, [&]() {
     handleLatestDialogue(server, dialogues, buzzer_pin, story_scene, scene_dialogue_count, dialogues_count, dialogReady, scene_dialogue_completed);
-  });
+    });
 
   server.begin();
   //dialogReady = true;
@@ -161,7 +161,7 @@ void loop() {
 
       long duration = mapDouble(DBToLinear(max(signalStrength, -80)), DBToLinear(-80), DBToLinear(-20), 2000, 1);  // Map signal strength to duration
       off_beep = duration;
-      
+
       //ITimer.setInterval(duration * 1000, beep);
       Serial.println(duration);
 
