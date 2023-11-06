@@ -9,6 +9,9 @@
 #include "ESP8266TimerInterrupt.h"
 #include <MD_MAX72xx.h>
 
+#define TEST 1                   // Enable Testing Of Hardware
+#define STATION_MODE_SELECTOR 0  // WIFI Acesspoint Modes
+
 #define HARDWARE_TYPE MD_MAX72XX::GENERIC_HW
 #define MAX_DEVICES 1
 
@@ -24,7 +27,7 @@
 
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
-long TIMER_INTERVAL_MS = 4000;
+long TIMER_INTERVAL_MS = 4000;  //4ms
 
 const int buzzer_pin = 4;
 const int button_pin = D1;
@@ -42,7 +45,7 @@ String rawData = "36633";
 String teamName = "Dev Board";
 bool dialogReady = true;
 bool scene_dialogue_completed = false;
-bool scan_for_rssi = true;
+bool scan_for_rssi = false;
 
 long long story_scene = 0;
 long long scene_dialogue_count = 0;
@@ -91,14 +94,14 @@ void setup() {
   //Serial.println();
 
   pinMode(button_pin, INPUT_PULLUP);
-  pinMode(buzzer_pin, OUTPUT);
 
+  pinMode(buzzer_pin, OUTPUT);
   digitalWrite(buzzer_pin, LOW);
 
   randomSeed(analogRead(A0));
 
   // WIFI CONFIG
-  if (1) {
+  if (STATION_MODE_SELECTOR) {
     // Connect to the "Storm PTCL" WiFi network with the specified password
     WiFi.begin(ssid, password);
     //Serial.print("Connecting to WiFi ");
@@ -122,13 +125,6 @@ void setup() {
 
   // MATRIX BEGIN
   mx.begin();
-
-  for (int i = 0; i < 8; i++) {
-    for (int j = 0; j < 8; j++) {
-
-      mx.setPoint(i, j, true);
-    }
-  }
 
   // OTA CONFIG
   // Port defaults to 8266
@@ -212,11 +208,48 @@ void setup() {
   });
 
   server.on("/latestDialogue", HTTP_GET, [&]() {
-    handleLatestDialogue(server, dialogues, buzzer_pin, story_scene, scene_dialogue_count, dialogues_count, dialogReady, scene_dialogue_completed);
+    handleLatestDialogue(server, dialogues, buzzer_pin, story_scene, scene_dialogue_count, dialogues_count, dialogReady, scene_dialogue_completed, scan_for_rssi);
   });
 
   server.begin();
-  //dialogReady = true;
+
+  if (TEST) {
+    //Test Buzzer
+    digitalWrite(buzzer_pin, HIGH);
+    delay(100);
+    digitalWrite(buzzer_pin, LOW);
+
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        mx.setPoint(i, j, true);
+        delay(10);
+      }
+    }
+
+    for (char a = 0; a < 0xf; a++) {
+      mx.control(MD_MAX72XX::INTENSITY, a);
+      delay(20);
+    }
+
+    for (char a = 0xf; a > 0x0; a--) {
+      mx.control(MD_MAX72XX::INTENSITY, a);
+      delay(20);
+    }
+
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        mx.setPoint(i, j, false);
+        delay(10);
+      }
+    }
+  }
+
+  for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < 8; j++) {
+      mx.setPoint(i, j, true);
+    }
+  }
+  dialogReady = true;
 }
 
 void loop() {
@@ -245,6 +278,9 @@ void loop() {
     }
 
     if (digitalRead(button_pin) == LOW) {
+      digitalWrite(buzzer_pin, HIGH);
+      delay(100);
+      digitalWrite(buzzer_pin, LOW);
       dialogReady = true;
     }
   }

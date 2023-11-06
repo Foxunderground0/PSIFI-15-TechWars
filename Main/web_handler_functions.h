@@ -18,8 +18,7 @@ inline void handleAllDialogue(ESP8266WebServer &server, String allDialogue, bool
   scene_dialogue_completed = true;
 }
 
-inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[][20], const int &buzzer_pin, long long &story_scene, long long &scene_dialogue_count, int dialogues_count[], bool &dialogReady, bool &scene_dialogue_completed) {
-  scene_dialogue_completed = false;
+inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[][20], const int &buzzer_pin, long long &story_scene, long long &scene_dialogue_count, int dialogues_count[], bool &dialogReady, bool &scene_dialogue_completed, bool &scan_for_rssi) {  scene_dialogue_completed = false;
   String response = dialogues[story_scene][scene_dialogue_count];
   long long num_of_characters = response.length();
   server.send(200, "text/plain", response);
@@ -52,10 +51,13 @@ inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[]
   scene_dialogue_count++;
 
   if (scene_dialogue_count == dialogues_count[story_scene]) {
-    story_scene++;
     scene_dialogue_count = 0;
+    story_scene++;
     dialogReady = false;
     scene_dialogue_completed = true;
+    if(story_scene == 1){
+      scan_for_rssi = true;      
+    }
   } else {
     dialogReady = true;
   }
