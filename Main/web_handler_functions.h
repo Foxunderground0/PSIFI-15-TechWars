@@ -1,3 +1,7 @@
+#pragma once
+#include <LittleFS.h>
+#include "file_handler_functions.h"
+
 inline void handleRoot(ESP8266WebServer &server) {
   server.send(200, "text/html", htmlContent, sizeof(htmlContent));
 }
@@ -7,23 +11,49 @@ inline void handleBootTime(ESP8266WebServer &server) {
   server.send(200, "text/plain", String(millis()) + "." + String(micros()).substring(String(micros()).length() - 3));
 }
 
+inline void handleFSContent(ESP8266WebServer &server, const String &dialogue_file_path) {
+  File file = LittleFS.open(dialogue_file_path, "r");
+  if (file) {
+    // Read the content of the file
+    String fileContent = file.readString();
+    file.close();
+
+    // Send the file content as the response
+    server.send(200, "text/plain", fileContent);
+  } else {
+    // If the file cannot be opened, send an error response
+    server.send(500, "text/plain", "Failed to open file for reading");
+  }
+}
+
 inline void handleDialogReady(ESP8266WebServer &server, bool &dialogReady, bool &scene_dialogue_completed) {
   server.send(200, "text/plain", (dialogReady ? "1" : "0"));
   scene_dialogue_completed = !dialogReady;  // Update the scene_dialogue_completed based on dialogReady
   dialogReady = false;
 }
 
-inline void handleAllDialogue(ESP8266WebServer &server, String allDialogue, bool &scene_dialogue_completed) {
-  server.send(200, "text/plain", allDialogue);
+void handlePastDialogue(ESP8266WebServer &server, const String (&dialogues)[][20], bool &scene_dialogue_completed, long long &story_scene, long long &scene_dialogue_count) {
+  String response = "";
+
+  // Concatenate strings from dialogues[story_scene][0] to dialogues[story_scene][scene_dialogue_count-1]
+  for (long long i = 0; i < scene_dialogue_count; ++i) {
+    response += dialogues[story_scene][i];
+
+    // You can add a separator between dialogues if needed, for example, a newline character
+    response += "\n";
+  }
+
+  server.send(200, "text/plain", response);
   scene_dialogue_completed = true;
 }
 
-inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[][20], const int &buzzer_pin, long long &story_scene, long long &scene_dialogue_count, int dialogues_count[], bool &dialogReady, bool &scene_dialogue_completed) {
+inline void handleLatestDialogue(ESP8266WebServer &server, const String (&dialogues)[][20], const int &buzzer_pin, long long &story_scene, long long &scene_dialogue_count, int dialogues_count[], bool &dialogReady, bool &scene_dialogue_completed) {
   scene_dialogue_completed = false;
   String response = dialogues[story_scene][scene_dialogue_count];
   long long num_of_characters = response.length();
   server.send(200, "text/plain", response);
 
+  //Create the buzzer chirping sound
   unsigned long startTime = millis();
   unsigned long elapsedTime = 0;  // Initialize elapsed time to zero
 
@@ -45,7 +75,6 @@ inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[]
   // Done chirping
   noTone(buzzer_pin);
 
-
   // Done chirping
   digitalWrite(buzzer_pin, LOW);
 
@@ -59,9 +88,9 @@ inline void handleLatestDialogue(ESP8266WebServer &server, String (&dialogues)[]
   } else {
     dialogReady = true;
   }
+
+  updatePersistedDialogue(story_scene, scene_dialogue_count);
 }
-
-
 
 inline void handleCMD(ESP8266WebServer &server, const String &teamName, const int &buzzer_pin) {
   String command = server.arg("command");

@@ -1,5 +1,5 @@
 int dialogues_count[] = { 9, 13, 8, 12, 19, 8, 5, 8, 5, 4, 6, 11, 4, 17, 19 };
-String dialogues[][20] = {
+const String dialogues[][20] = {
   {
     "You dare draw near, in search of the code,",
     "How predictable, this daring episode.",

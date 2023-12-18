@@ -6,8 +6,10 @@
 #include "webpage.h"
 #include "dialogues.h"
 #include "web_handler_functions.h"
+#include "file_handler_functions.h"
 #include "ESP8266TimerInterrupt.h"
 #include <MD_MAX72xx.h>
+#include <LittleFS.h>
 
 #define HARDWARE_TYPE MD_MAX72XX::GENERIC_HW
 #define MAX_DEVICES 1
@@ -15,7 +17,6 @@
 #define CLK_PIN D5   //14 or SCK
 #define DATA_PIN D7  //13 or MOSI
 #define CS_PIN D6    //12 or SS
-
 
 // Select a Timer Clock
 #define USING_TIM_DIV1 false    // for shortest and most accurate timer
@@ -42,10 +43,12 @@ String rawData = "36633";
 String teamName = "Dev Board";
 bool dialogReady = true;
 bool scene_dialogue_completed = false;
-bool scan_for_rssi = true;
+bool scan_for_rssi = false;
 
 long long story_scene = 0;
 long long scene_dialogue_count = 0;
+
+const char* dialogue_file_path = "/dialogue_persist.bin";
 
 String pastDialogue = "--Insert past dialogue here--";
 
@@ -73,6 +76,7 @@ double DBToLinear(long long val) {
 
 bool isBeeping = false;
 
+// Beep the buzzer, and alternate the threshold millis depending if currently on beep or off beep
 void IRAM_ATTR beep() {
   if (millis() - last_beep_millis > threshold_millis) {
     isBeeping = !isBeeping;
@@ -87,8 +91,8 @@ double mapDouble(double x, double in_min, double in_max, double out_min, double 
 }
 
 void setup() {
-  //Serial.begin(115200);
-  //Serial.println();
+  Serial.begin(115200);
+  Serial.println();
 
   pinMode(button_pin, INPUT_PULLUP);
   pinMode(buzzer_pin, OUTPUT);
@@ -101,23 +105,30 @@ void setup() {
   if (1) {
     // Connect to the "Storm PTCL" WiFi network with the specified password
     WiFi.begin(ssid, password);
-    //Serial.print("Connecting to WiFi ");
+    Serial.print("Connecting to WiFi ");
     while (WiFi.status() != WL_CONNECTED) {
-      //Serial.print(".");
+      Serial.print(".");
       delay(100);
     }
-    //Serial.println(".");
-    //Serial.println("Connected to WiFi");
-    //Serial.print("IP address: ");
-    //Serial.println(WiFi.localIP());
+    Serial.println(".");
+    Serial.println("Connected to WiFi");
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
   } else {
     // Configure the Access Point
     WiFi.softAP("Test", "");
 
     // Get the IP address of the Access Point
     IPAddress apIP = WiFi.softAPIP();
-    //Serial.print("Access Point IP address: ");
-    //Serial.println(apIP);
+    Serial.print("Access Point IP address: ");
+    Serial.println(apIP);
+  }
+
+  if (!LittleFS.begin()) {
+    Serial.println("LittleFS initialization failed!");
+    return;
+  } else {
+    Serial.println("LittleFS OK");
   }
 
   // MATRIX BEGIN
@@ -129,6 +140,7 @@ void setup() {
       mx.setPoint(i, j, true);
     }
   }
+  Serial.println("Matrix OK");
 
   // OTA CONFIG
   // Port defaults to 8266
@@ -144,6 +156,7 @@ void setup() {
   // MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
   // ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
 
+
   ArduinoOTA.onStart([]() {
     String type;
     if (ArduinoOTA.getCommand() == U_FLASH) {
@@ -153,38 +166,53 @@ void setup() {
     }
 
     // NOTE: if updating FS this would be the place to unmount FS using FS.end()
-    //Serial.println("Start updating " + type);
+    Serial.println("Start updating " + type);
   });
   ArduinoOTA.onEnd([]() {
-    //Serial.println("\nEnd");
+    Serial.println("\nEnd");
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    //Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
   });
   ArduinoOTA.onError([](ota_error_t error) {
-    //Serial.printf("Error[%u]: ", error);
+    Serial.printf("Error[%u]: ", error);
     if (error == OTA_AUTH_ERROR) {
-      //Serial.println("Auth Failed");
+      Serial.println("Auth Failed");
     } else if (error == OTA_BEGIN_ERROR) {
-      //Serial.println("Begin Failed");
+      Serial.println("Begin Failed");
     } else if (error == OTA_CONNECT_ERROR) {
-      //Serial.println("Connect Failed");
+      Serial.println("Connect Failed");
     } else if (error == OTA_RECEIVE_ERROR) {
-      //Serial.println("Receive Failed");
+      Serial.println("Receive Failed");
     } else if (error == OTA_END_ERROR) {
-      //Serial.println("End Failed");
+      Serial.println("End Failed");
     }
   });
+
   ArduinoOTA.begin();
+  Serial.println("OTA OK");
 
   // TIMER CONFIG
   if (ITimer.attachInterruptInterval(1000, beep)) {
-    //Serial.print("Starting ITimer OK");
+    Serial.println("ITimer OK");
   } else {
-    //Serial.println("Can't set ITimer correctly");
+    Serial.println("Can't set ITimer correctly");
   }
 
   //ITimer.disableTimer();
+
+  Serial.println("Reading presistant data");
+  if (fileExists(dialogue_file_path)) {
+    readPersistedDialogue(story_scene, scene_dialogue_count);
+    Serial.println("File exists. Values read from file:");
+    Serial.println("story_scene: " + String(story_scene));
+    Serial.println("scene_dialogue_count: " + String(scene_dialogue_count));
+  } else {
+    // If the file doesn't exist, create it with initial data "0,0"
+    updatePersistedDialogue(0LL, 0LL);
+    Serial.println("File doesn't exist. Created with initial values 0, 0.");
+  }
+  Serial.println("File reading done");
 
   // SERVER CONFIG
   server.on("/", HTTP_GET, [&]() {
@@ -208,14 +236,19 @@ void setup() {
   });
 
   server.on("/pastDialogue", HTTP_GET, [&]() {
-    handleAllDialogue(server, pastDialogue, scene_dialogue_completed);
+    handlePastDialogue(server, dialogues, scene_dialogue_completed, story_scene, scene_dialogue_count);
   });
 
   server.on("/latestDialogue", HTTP_GET, [&]() {
     handleLatestDialogue(server, dialogues, buzzer_pin, story_scene, scene_dialogue_count, dialogues_count, dialogReady, scene_dialogue_completed);
   });
 
+  server.on("/littleFS", HTTP_GET, [&]() {
+    handleFSContent(server, dialogue_file_path);
+  });
+
   server.begin();
+  Serial.println("Web Server OK");
   //dialogReady = true;
 }
 
@@ -230,7 +263,7 @@ void loop() {
       off_beep = duration;
 
       //ITimer.setInterval(duration * 1000, beep);
-      //Serial.println(duration);
+      Serial.println(duration);
 
 
       if (signalStrength <= -20) {
@@ -250,4 +283,6 @@ void loop() {
   }
   server.handleClient();
   ArduinoOTA.handle();
+  
+  Serial.println(String(story_scene) + " "+ String(scene_dialogue_count));
 }
