@@ -11,6 +11,9 @@
 #include <MD_MAX72xx.h>
 #include <LittleFS.h>
 
+#define TEST 1                   // Enable Testing Of Hardware
+#define STATION_MODE_SELECTOR 0  // WIFI Acesspoint Modes
+
 #define HARDWARE_TYPE MD_MAX72XX::GENERIC_HW
 #define MAX_DEVICES 1
 
@@ -25,7 +28,7 @@
 
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
-long TIMER_INTERVAL_MS = 4000;
+long TIMER_INTERVAL_MS = 4000;  //4ms
 
 const int buzzer_pin = 4;
 const int button_pin = D1;
@@ -95,14 +98,14 @@ void setup() {
   Serial.println();
 
   pinMode(button_pin, INPUT_PULLUP);
-  pinMode(buzzer_pin, OUTPUT);
 
+  pinMode(buzzer_pin, OUTPUT);
   digitalWrite(buzzer_pin, LOW);
 
   randomSeed(analogRead(A0));
 
   // WIFI CONFIG
-  if (1) {
+  if (STATION_MODE_SELECTOR) {
     // Connect to the "Storm PTCL" WiFi network with the specified password
     WiFi.begin(ssid, password);
     Serial.print("Connecting to WiFi ");
@@ -140,7 +143,6 @@ void setup() {
       mx.setPoint(i, j, true);
     }
   }
-  Serial.println("Matrix OK");
 
   // OTA CONFIG
   // Port defaults to 8266
@@ -167,13 +169,13 @@ void setup() {
 
     // NOTE: if updating FS this would be the place to unmount FS using FS.end()
     Serial.println("Start updating " + type);
-  });
+    });
   ArduinoOTA.onEnd([]() {
     Serial.println("\nEnd");
-  });
+    });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-  });
+    });
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf("Error[%u]: ", error);
     if (error == OTA_AUTH_ERROR) {
@@ -187,7 +189,7 @@ void setup() {
     } else if (error == OTA_END_ERROR) {
       Serial.println("End Failed");
     }
-  });
+    });
 
   ArduinoOTA.begin();
   Serial.println("OTA OK");
@@ -217,39 +219,76 @@ void setup() {
   // SERVER CONFIG
   server.on("/", HTTP_GET, [&]() {
     handleRoot(server);
-  });
+    });
 
   server.on("/bootTime", HTTP_GET, [&]() {
     handleBootTime(server);
-  });
+    });
 
   server.on("/entered", HTTP_GET, [&]() {
     handleCMD(server, teamName, buzzer_pin);
-  });
+    });
 
   server.on("/rawData", HTTP_GET, [&]() {
     handleRawData(server, rawData);
-  });
+    });
 
   server.on("/dialogReady", HTTP_GET, [&]() {
     handleDialogReady(server, dialogReady, scene_dialogue_completed);
-  });
+    });
 
   server.on("/pastDialogue", HTTP_GET, [&]() {
     handlePastDialogue(server, dialogues, scene_dialogue_completed, story_scene, scene_dialogue_count);
-  });
+    });
 
   server.on("/latestDialogue", HTTP_GET, [&]() {
     handleLatestDialogue(server, dialogues, buzzer_pin, story_scene, scene_dialogue_count, dialogues_count, dialogReady, scene_dialogue_completed);
-  });
+    });
 
   server.on("/littleFS", HTTP_GET, [&]() {
     handleFSContent(server, dialogue_file_path);
-  });
+    });
 
   server.begin();
   Serial.println("Web Server OK");
-  //dialogReady = true;
+
+  if (TEST) {
+    //Test Buzzer
+    digitalWrite(buzzer_pin, HIGH);
+    delay(100);
+    digitalWrite(buzzer_pin, LOW);
+
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        mx.setPoint(i, j, true);
+        delay(10);
+      }
+    }
+
+    for (char a = 0; a < 0xf; a++) {
+      mx.control(MD_MAX72XX::INTENSITY, a);
+      delay(20);
+    }
+
+    for (char a = 0xf; a > 0x0; a--) {
+      mx.control(MD_MAX72XX::INTENSITY, a);
+      delay(20);
+    }
+
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        mx.setPoint(i, j, false);
+        delay(10);
+      }
+    }
+  }
+
+  for (int i = 0; i < 8; i++) {
+    for (int j = 0; j < 8; j++) {
+      mx.setPoint(i, j, true);
+    }
+  }
+  dialogReady = true;
 }
 
 void loop() {
@@ -278,11 +317,14 @@ void loop() {
     }
 
     if (digitalRead(button_pin) == LOW) {
+      digitalWrite(buzzer_pin, HIGH);
+      delay(100);
+      digitalWrite(buzzer_pin, LOW);
       dialogReady = true;
     }
   }
   server.handleClient();
   ArduinoOTA.handle();
-  
-  Serial.println(String(story_scene) + " "+ String(scene_dialogue_count));
+
+  Serial.println(String(story_scene) + " " + String(scene_dialogue_count));
 }

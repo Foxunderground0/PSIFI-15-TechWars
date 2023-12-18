@@ -2,16 +2,16 @@
 #include <LittleFS.h>
 #include "file_handler_functions.h"
 
-inline void handleRoot(ESP8266WebServer &server) {
+inline void handleRoot(ESP8266WebServer& server) {
   server.send(200, "text/html", htmlContent, sizeof(htmlContent));
 }
 
-inline void handleBootTime(ESP8266WebServer &server) {
+inline void handleBootTime(ESP8266WebServer& server) {
   // Respond with the current value of millis
   server.send(200, "text/plain", String(millis()) + "." + String(micros()).substring(String(micros()).length() - 3));
 }
 
-inline void handleFSContent(ESP8266WebServer &server, const String &dialogue_file_path) {
+inline void handleFSContent(ESP8266WebServer& server, const String& dialogue_file_path) {
   File file = LittleFS.open(dialogue_file_path, "r");
   if (file) {
     // Read the content of the file
@@ -26,13 +26,13 @@ inline void handleFSContent(ESP8266WebServer &server, const String &dialogue_fil
   }
 }
 
-inline void handleDialogReady(ESP8266WebServer &server, bool &dialogReady, bool &scene_dialogue_completed) {
+inline void handleDialogReady(ESP8266WebServer& server, bool& dialogReady, bool& scene_dialogue_completed) {
   server.send(200, "text/plain", (dialogReady ? "1" : "0"));
   scene_dialogue_completed = !dialogReady;  // Update the scene_dialogue_completed based on dialogReady
   dialogReady = false;
 }
 
-void handlePastDialogue(ESP8266WebServer &server, const String (&dialogues)[][20], bool &scene_dialogue_completed, long long &story_scene, long long &scene_dialogue_count) {
+void handlePastDialogue(ESP8266WebServer& server, const String(&dialogues)[][20], bool& scene_dialogue_completed, long long& story_scene, long long& scene_dialogue_count) {
   String response = "";
 
   // Concatenate strings from dialogues[story_scene][0] to dialogues[story_scene][scene_dialogue_count-1]
@@ -47,7 +47,7 @@ void handlePastDialogue(ESP8266WebServer &server, const String (&dialogues)[][20
   scene_dialogue_completed = true;
 }
 
-inline void handleLatestDialogue(ESP8266WebServer &server, const String (&dialogues)[][20], const int &buzzer_pin, long long &story_scene, long long &scene_dialogue_count, int dialogues_count[], bool &dialogReady, bool &scene_dialogue_completed) {
+inline void handleLatestDialogue(ESP8266WebServer& server, const String(&dialogues)[][20], const int& buzzer_pin, long long& story_scene, long long& scene_dialogue_count, int dialogues_count[], bool& dialogReady, bool& scene_dialogue_completed) {
   scene_dialogue_completed = false;
   String response = dialogues[story_scene][scene_dialogue_count];
   long long num_of_characters = response.length();
@@ -81,10 +81,13 @@ inline void handleLatestDialogue(ESP8266WebServer &server, const String (&dialog
   scene_dialogue_count++;
 
   if (scene_dialogue_count == dialogues_count[story_scene]) {
-    story_scene++;
     scene_dialogue_count = 0;
+    story_scene++;
     dialogReady = false;
     scene_dialogue_completed = true;
+    if (story_scene == 1) {
+      scan_for_rssi = true;
+    }
   } else {
     dialogReady = true;
   }
@@ -92,7 +95,7 @@ inline void handleLatestDialogue(ESP8266WebServer &server, const String (&dialog
   updatePersistedDialogue(story_scene, scene_dialogue_count);
 }
 
-inline void handleCMD(ESP8266WebServer &server, const String &teamName, const int &buzzer_pin) {
+inline void handleCMD(ESP8266WebServer& server, const String& teamName, const int& buzzer_pin) {
   String command = server.arg("command");
   Serial.println(command);
   String response = "";
@@ -113,7 +116,7 @@ inline void handleCMD(ESP8266WebServer &server, const String &teamName, const in
   digitalWrite(buzzer_pin, LOW);   // turn the LED off by making the voltage LOW
 }
 
-inline void handleRawData(ESP8266WebServer &server, const String &rawData) {
+inline void handleRawData(ESP8266WebServer& server, const String& rawData) {
   // Respond with the current value of rawData
   server.send(200, "text/plain", rawData);
 }
