@@ -3,7 +3,7 @@
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
-#include "webpage.h"
+#include <ESP8266HTTPUpdateServer.h>
 #include "dialogues.h"
 #include "web_handler_functions.h"
 #include "file_handler_functions.h"
@@ -12,7 +12,7 @@
 #include <LittleFS.h>
 
 #define TEST 1                   // Enable Testing Of Hardware
-#define STATION_MODE_SELECTOR 0  // WIFI Acesspoint Modes
+#define STATION_MODE_SELECTOR 1  // WIFI Acesspoint Modes
 
 #define HARDWARE_TYPE MD_MAX72XX::GENERIC_HW
 #define MAX_DEVICES 1
@@ -51,7 +51,7 @@ bool scan_for_rssi = false;
 long long story_scene = 0;
 long long scene_dialogue_count = 0;
 
-const char* dialogue_file_path = "/dialogue_persist.bin";
+const String dialogue_file_path = "/dialogue_persist.bin";
 
 String pastDialogue = "--Insert past dialogue here--";
 
@@ -59,6 +59,8 @@ String pastDialogue = "--Insert past dialogue here--";
 ESP8266WebServer server(80);
 // Init ESP8266 timer 1
 ESP8266Timer ITimer;
+// Create an instance of the HTTPUpdateServer class
+ESP8266HTTPUpdateServer httpUpdater;
 
 int getStrengthOfSSID(String ssid_to_scan) {
   int numNetworks = WiFi.scanNetworks();
@@ -127,24 +129,43 @@ void setup() {
     Serial.println(apIP);
   }
 
+  // File system initialised
   if (!LittleFS.begin()) {
     Serial.println("LittleFS initialization failed!");
-    return;
   } else {
     Serial.println("LittleFS OK");
   }
+
+  if (!checkIfAllDataFileExists()) {
+    Serial.println("Not all required files are on little FS!");
+  } else {
+    Serial.println("Data Files on Little FS OK");
+  }
+
+  Serial.println("Reading presistant data");
+  if (fileExists(dialogue_file_path)) {
+    readPersistedDialogue(story_scene, scene_dialogue_count);
+    Serial.println("File exists. Values read from file:");
+    Serial.println("story_scene: " + String(story_scene));
+    Serial.println("scene_dialogue_count: " + String(scene_dialogue_count));
+  } else {
+    // If the file doesn't exist, create it with initial data "0,0"
+    updatePersistedDialogue(0LL, 0LL);
+    Serial.println("File doesn't exist. Created with initial values 0, 0.");
+  }
+  Serial.println("File reading done");
 
   // MATRIX BEGIN
   mx.begin();
 
   for (int i = 0; i < 8; i++) {
     for (int j = 0; j < 8; j++) {
-
       mx.setPoint(i, j, true);
     }
   }
 
   // OTA CONFIG
+
   // Port defaults to 8266
   // ArduinoOTA.setPort(8266);
 
@@ -169,13 +190,13 @@ void setup() {
 
     // NOTE: if updating FS this would be the place to unmount FS using FS.end()
     Serial.println("Start updating " + type);
-    });
+  });
   ArduinoOTA.onEnd([]() {
     Serial.println("\nEnd");
-    });
+  });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-    });
+  });
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf("Error[%u]: ", error);
     if (error == OTA_AUTH_ERROR) {
@@ -189,7 +210,7 @@ void setup() {
     } else if (error == OTA_END_ERROR) {
       Serial.println("End Failed");
     }
-    });
+  });
 
   ArduinoOTA.begin();
   Serial.println("OTA OK");
@@ -200,57 +221,58 @@ void setup() {
   } else {
     Serial.println("Can't set ITimer correctly");
   }
-
   //ITimer.disableTimer();
-
-  Serial.println("Reading presistant data");
-  if (fileExists(dialogue_file_path)) {
-    readPersistedDialogue(story_scene, scene_dialogue_count);
-    Serial.println("File exists. Values read from file:");
-    Serial.println("story_scene: " + String(story_scene));
-    Serial.println("scene_dialogue_count: " + String(scene_dialogue_count));
-  } else {
-    // If the file doesn't exist, create it with initial data "0,0"
-    updatePersistedDialogue(0LL, 0LL);
-    Serial.println("File doesn't exist. Created with initial values 0, 0.");
-  }
-  Serial.println("File reading done");
 
   // SERVER CONFIG
   server.on("/", HTTP_GET, [&]() {
-    handleRoot(server);
-    });
+    handleRoot(server, dialogReady);
+  });
 
   server.on("/bootTime", HTTP_GET, [&]() {
     handleBootTime(server);
-    });
+  });
 
   server.on("/entered", HTTP_GET, [&]() {
     handleCMD(server, teamName, buzzer_pin);
-    });
+  });
 
   server.on("/rawData", HTTP_GET, [&]() {
     handleRawData(server, rawData);
-    });
+  });
 
   server.on("/dialogReady", HTTP_GET, [&]() {
     handleDialogReady(server, dialogReady, scene_dialogue_completed);
-    });
+  });
 
   server.on("/pastDialogue", HTTP_GET, [&]() {
     handlePastDialogue(server, dialogues, scene_dialogue_completed, story_scene, scene_dialogue_count);
-    });
+  });
 
   server.on("/latestDialogue", HTTP_GET, [&]() {
-    handleLatestDialogue(server, dialogues, buzzer_pin, story_scene, scene_dialogue_count, dialogues_count, dialogReady, scene_dialogue_completed);
-    });
+    handleLatestDialogue(server, dialogues, buzzer_pin, story_scene, scene_dialogue_count, dialogues_count, dialogReady, scene_dialogue_completed, scan_for_rssi);
+  });
 
   server.on("/littleFS", HTTP_GET, [&]() {
     handleFSContent(server, dialogue_file_path);
-    });
+  });
+
+  server.on("/video", HTTP_GET, [&]() {
+    handleMKV(server);
+  });
 
   server.begin();
   Serial.println("Web Server OK");
+
+  // Setup the HTTPUpdateServer
+  httpUpdater.setup(&server);
+  Serial.println("HTTP OTA Update Server OK");
+
+  MDNS.begin("esp8266");
+  Serial.println("MDNS Server OK");
+
+  // Output Chip ID
+  Serial.print("Chip ID: 0x");
+  Serial.println(ESP.getChipId(), HEX);
 
   if (TEST) {
     //Test Buzzer
@@ -283,12 +305,18 @@ void setup() {
     }
   }
 
+  // Set matrix to all on
   for (int i = 0; i < 8; i++) {
     for (int j = 0; j < 8; j++) {
       mx.setPoint(i, j, true);
     }
   }
-  dialogReady = true;
+
+  Serial.print("Boot Completed in: ");
+  Serial.print(millis());
+  Serial.print("ms ");
+  Serial.print(micros());
+  Serial.println("us");
 }
 
 void loop() {
@@ -326,5 +354,5 @@ void loop() {
   server.handleClient();
   ArduinoOTA.handle();
 
-  Serial.println(String(story_scene) + " " + String(scene_dialogue_count));
+  //Serial.println(String(story_scene) + " " + String(scene_dialogue_count));
 }

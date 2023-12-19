@@ -1,0 +1,93 @@
+Text to encode: levan polka Gbc 4 bppheevat jbeqf va gur oevqtr, unfurq va fun512
+
+where
+
+Gbc 4 bppheevat jbeqf va gur oevqtr, unfurq va fun512 (rot13) = Top 4 occurring words in the bridge, hashed in sha512
+
+Base 64 of line 1:
+bGV2YW4gcG9sa2EgR2JjIDQgYnBwaGVldmF0IGpiZXFmIHZhIGd1ciBvZXZxdHIsIHVuZnVycSB2YSBmdW41MTI=
+
+found at byte 0x4B5 of the immage
+
+
+Hilipati hilipati hilipati hillaa
+Hilipati hilipati hilipampaa
+Jalituli jallaa talituli jallaa
+Tilitali tilitali tilitantaa
+Hilipati hillaa hilipati hillaa
+Hilipati hilipati jalituli jallaa
+Tilitali tallaa, tulituli jallaa
+Hilipati hilipati hilipampaa
+Rimpatirillaa ripirapirullaa
+Rumpatirumpa tiripirampuu
+Jamparingaa rimpatiraparan
+Tsupantupiran dillandu
+Japat stilla dipudupu dullaa
+Dumpatidupa lipans dullaa
+Dipidapi dullaa rimpati rukan
+Ribitit stukan dillandu
+Jatsatsa barillas dilla lapadeian dullan deian doo
+Joparimba badabadeia stulla
+Laba daba daba dujan dillandu
+Barillas dilla deiaduu badaba daga daga daga daga dujaduu
+Badu dubi dubi dubi dejaduu
+Badaba dillas dillan dejaduu
+
+
+hilipati: 11
+jallaa: 4
+daga: 4
+hillaa: 3
+tilitali: 3
+dillandu: 3
+dullaa: 3
+dubi: 3
+hilipampaa: 2
+jalituli: 2
+barillas: 2
+dilla: 2
+daba: 2
+badaba: 2
+dejaduu: 2
+talituli: 1
+tilitantaa: 1
+tallaa: 1
+tulituli: 1
+rimpatirillaa: 1
+ripirapirullaa: 1
+rumpatirumpa: 1
+tiripirampuu: 1
+jamparingaa: 1
+rimpatiraparan: 1
+tsupantupiran: 1
+japat: 1
+stilla: 1
+dipudupu: 1
+dumpatidupa: 1
+lipans: 1
+dipidapi: 1
+rimpati: 1
+rukan: 1
+ribitit: 1
+stukan: 1
+jatsatsa: 1
+lapadeian: 1
+dullan: 1
+deian: 1
+doo: 1
+joparimba: 1
+badabadeia: 1
+stulla: 1
+laba: 1
+dujan: 1
+deiaduu: 1
+dujaduu: 1
+badu: 1
+dillas: 1
+dillan: 1
+
+Top words:
+hilipatijallaadagahillaa
+
+Sha-512 Hash: (Flag)
+9366d6cd7587731ee6f9f4afd1d24b3d51433a5026afbf64ef3ade374fc92bf6090fd5d5618c9681bc7a00af16492e51dfd62cb6f92c89fa6c11022ea2e8e857

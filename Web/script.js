@@ -64,6 +64,7 @@ function getCardyChat() {
                         await fetch('/pastDialogue')
                             .then(response => response.text())
                             .then(data => {
+                                console.log("HEREEEE");
                                 data = data.split("\n");
                                 data.forEach((data) => {
                                     document.getElementById('pastDialogue').innerHTML += data + "<br>";

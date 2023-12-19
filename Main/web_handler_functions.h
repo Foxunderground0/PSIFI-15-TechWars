@@ -2,8 +2,55 @@
 #include <LittleFS.h>
 #include "file_handler_functions.h"
 
-inline void handleRoot(ESP8266WebServer& server) {
-  server.send(200, "text/html", htmlContent, sizeof(htmlContent));
+void handleRoot(ESP8266WebServer& server, bool& dialogReady) {
+  const char* gzFilePath = "/index.html.gz"; // Adjust the path as needed
+
+  // Open the compressed file from LittleFS
+  File gzFile = LittleFS.open(gzFilePath, "r");
+  if (!gzFile) {
+    server.send(500, "text/plain", "Failed to open compressed file for reading");
+    return;
+  }
+
+  // -- Apparently it automatically detects that the encoding is .gz so we dont explicitly need to define this --
+  // Set the Content-Encoding header to indicate gzip compression
+  //server.sendHeader("Content-Encoding", "gzip");
+
+  // Send the gzipped file content
+  server.streamFile(gzFile, "text/html");
+
+  // Close the file
+  gzFile.close();
+
+  // Set dialogReady to true after sending the response
+  dialogReady = true;
+}
+
+inline void handleMKV(ESP8266WebServer& server) {
+  const char* filePath = "/output_final.mkv"; // Adjust the path as needed
+
+  // Open the file from LittleFS
+  File file = LittleFS.open(filePath, "r");
+  if (!file) {
+    server.send(500, "text/plain", "Failed to open file for reading");
+    return;
+  }
+
+  // Get the filename from the path
+  String filename = String(filePath);
+  int lastSlashIndex = filename.lastIndexOf('/');
+  if (lastSlashIndex != -1) {
+    filename = filename.substring(lastSlashIndex + 1);
+  }
+
+  // Set the Content-Disposition header to suggest a filename
+  server.sendHeader("Content-Disposition", "inline; filename=" + filename);
+
+  // Send the file content
+  server.streamFile(file, "video/x-matroska");
+
+  // Close the file
+  file.close();
 }
 
 inline void handleBootTime(ESP8266WebServer& server) {
@@ -47,7 +94,7 @@ void handlePastDialogue(ESP8266WebServer& server, const String(&dialogues)[][20]
   scene_dialogue_completed = true;
 }
 
-inline void handleLatestDialogue(ESP8266WebServer& server, const String(&dialogues)[][20], const int& buzzer_pin, long long& story_scene, long long& scene_dialogue_count, int dialogues_count[], bool& dialogReady, bool& scene_dialogue_completed) {
+inline void handleLatestDialogue(ESP8266WebServer& server, const String(&dialogues)[][20], const int& buzzer_pin, long long& story_scene, long long& scene_dialogue_count, int dialogues_count[], bool& dialogReady, bool& scene_dialogue_completed, bool& scan_for_rssi) {
   scene_dialogue_completed = false;
   String response = dialogues[story_scene][scene_dialogue_count];
   long long num_of_characters = response.length();
@@ -85,9 +132,11 @@ inline void handleLatestDialogue(ESP8266WebServer& server, const String(&dialogu
     story_scene++;
     dialogReady = false;
     scene_dialogue_completed = true;
+
     if (story_scene == 1) {
-      scan_for_rssi = true;
+      //scan_for_rssi = true;
     }
+
   } else {
     dialogReady = true;
   }
