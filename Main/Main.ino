@@ -260,6 +260,10 @@ void setup() {
     handleMKV(server);
   });
 
+  server.on("/reset", HTTP_GET, [&]() {
+    ESP.reset();
+  });
+
   server.begin();
   Serial.println("Web Server OK");
 
