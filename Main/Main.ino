@@ -14,6 +14,7 @@
 #define TEST 1                   // Enable Testing Of Hardware
 #define STATION_MODE_SELECTOR 1  // WIFI Acesspoint Modes
 
+#define  TEXTSCROLLDELAY  100  // in milliseconds
 #define HARDWARE_TYPE MD_MAX72XX::GENERIC_HW
 #define MAX_DEVICES 1
 
@@ -44,9 +45,11 @@ long long off_beep = 1000;
 
 String rawData = "36633";
 String teamName = "Dev Board";
+
 bool dialogReady = true;
 bool scene_dialogue_completed = false;
 bool scan_for_rssi = false;
+bool isBeeping = false;
 
 long long story_scene = 0;
 long long scene_dialogue_count = 0;
@@ -61,6 +64,26 @@ ESP8266WebServer server(80);
 ESP8266Timer ITimer;
 // Create an instance of the HTTPUpdateServer class
 ESP8266HTTPUpdateServer httpUpdater;
+
+void scrollText(const char* p)
+{
+  uint8_t charWidth;
+  uint8_t cBuf[8];  // this should be ok for all built-in fonts
+
+  mx.clear();
+
+  while (*p != '\0')
+  {
+    charWidth = mx.getChar(*p++, sizeof(cBuf) / sizeof(cBuf[0]), cBuf);
+
+    for (uint8_t i = 0; i <= charWidth; i++)  // allow space between characters
+    {
+      mx.transform(MD_MAX72XX::TSL);
+      mx.setColumn(0, (i < charWidth) ? cBuf[i] : 0);
+      delay(TEXTSCROLLDELAY);
+    }
+  }
+}
 
 int getStrengthOfSSID(String ssid_to_scan) {
   int numNetworks = WiFi.scanNetworks();
@@ -79,7 +102,6 @@ double DBToLinear(long long val) {
   return (double)pow(10, val / 10.0);
 }
 
-bool isBeeping = false;
 
 // Beep the buzzer, and alternate the threshold millis depending if currently on beep or off beep
 void IRAM_ATTR beep() {
@@ -190,13 +212,13 @@ void setup() {
 
     // NOTE: if updating FS this would be the place to unmount FS using FS.end()
     Serial.println("Start updating " + type);
-  });
+    });
   ArduinoOTA.onEnd([]() {
     Serial.println("\nEnd");
-  });
+    });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-  });
+    });
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf("Error[%u]: ", error);
     if (error == OTA_AUTH_ERROR) {
@@ -210,7 +232,7 @@ void setup() {
     } else if (error == OTA_END_ERROR) {
       Serial.println("End Failed");
     }
-  });
+    });
 
   ArduinoOTA.begin();
   Serial.println("OTA OK");
@@ -226,43 +248,43 @@ void setup() {
   // SERVER CONFIG
   server.on("/", HTTP_GET, [&]() {
     handleRoot(server, dialogReady);
-  });
+    });
 
   server.on("/bootTime", HTTP_GET, [&]() {
     handleBootTime(server);
-  });
+    });
 
   server.on("/entered", HTTP_GET, [&]() {
     handleCMD(server, teamName, buzzer_pin);
-  });
+    });
 
   server.on("/rawData", HTTP_GET, [&]() {
     handleRawData(server, rawData);
-  });
+    });
 
   server.on("/dialogReady", HTTP_GET, [&]() {
     handleDialogReady(server, dialogReady, scene_dialogue_completed);
-  });
+    });
 
   server.on("/pastDialogue", HTTP_GET, [&]() {
     handlePastDialogue(server, dialogues, scene_dialogue_completed, story_scene, scene_dialogue_count);
-  });
+    });
 
   server.on("/latestDialogue", HTTP_GET, [&]() {
     handleLatestDialogue(server, dialogues, buzzer_pin, story_scene, scene_dialogue_count, dialogues_count, dialogReady, scene_dialogue_completed, scan_for_rssi);
-  });
+    });
 
   server.on("/littleFS", HTTP_GET, [&]() {
     handleFSContent(server, dialogue_file_path);
-  });
+    });
 
   server.on("/video", HTTP_GET, [&]() {
     handleMKV(server);
-  });
+    });
 
   server.on("/reset", HTTP_GET, [&]() {
     ESP.reset();
-  });
+    });
 
   server.begin();
   Serial.println("Web Server OK");
@@ -293,20 +315,22 @@ void setup() {
 
     for (char a = 0; a < 0xf; a++) {
       mx.control(MD_MAX72XX::INTENSITY, a);
-      delay(20);
+      delay(50);
     }
 
     for (char a = 0xf; a > 0x0; a--) {
       mx.control(MD_MAX72XX::INTENSITY, a);
-      delay(20);
+      delay(50);
     }
 
     for (int i = 0; i < 8; i++) {
       for (int j = 0; j < 8; j++) {
         mx.setPoint(i, j, false);
-        delay(10);
+        delay(20);
       }
     }
+
+    scrollText("TECHWARS - CARDY");
   }
 
   // Set matrix to all on
