@@ -1,11 +1,11 @@
 Challenges/Leaves of the Vine/*.mp4
-Challenges/Audio Spectrogram/Images/*
-Challenges/Audio Spectrogram/Merged Audio (Music+Key)/*
-Challenges/Audio Spectrogram/Music Audio/*
-Challenges/Audio Spectrogram/Raw Music Audio/*
-Challenges/Audio Spectrogram/Keys Audio/*
-Challenges/Audio Spectrogram/Spectrograms
-Challenges/Data In Immages/Immages/*
-Challenges/Data In Immages/Raw Immages/*
-Challenges/Data In Immages/Immages - Copy/*
+Challenges/Audio Steganography/Images/*
+Challenges/Audio Steganography/Merged Audio (Music+Key)/*
+Challenges/Audio Steganography/Music Audio/*
+Challenges/Audio Steganography/Raw Music Audio/*
+Challenges/Audio Steganography/Keys Audio/*
+Challenges/Audio Steganography/Spectrograms
+Challenges/Image Hex Dump/Immages/*
+Challenges/Image Hex Dump/Raw Immages/*
+Challenges/Image Hex Dump/Immages - Copy/*
 Main/data/*
