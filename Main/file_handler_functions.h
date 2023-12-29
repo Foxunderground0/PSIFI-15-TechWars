@@ -1,5 +1,6 @@
 #pragma once
 #include <LittleFS.h>
+#include "utils.h"
 #include "file_names.cpp"
 
 inline bool fileExists(const String path) {
@@ -24,7 +25,7 @@ inline void readPersistedDialogue(long long& story_scene, long long& scene_dialo
     file.close();
 
   } else {
-    Serial.println("Failed to open file for reading");
+    SerialPrintLn("Failed to open file for reading");
   }
 }
 
@@ -35,7 +36,7 @@ inline void updatePersistedDialogue(long long newStoryScene, long long newSceneD
     file.printf("%lld\n%lld\n", newStoryScene, newSceneDialogueCount);
     file.close();
   } else {
-    Serial.println("Failed to open file for writing");
+    SerialPrintLn("Failed to open file for writing");
   }
 }
 
@@ -45,10 +46,10 @@ inline bool checkIfAllDataFileExists() {
     bool fileExists = LittleFS.exists(filename);
 
     // Print the filename and its existence to the serial
-    Serial.print("File: ");
-    Serial.print(filename);
-    Serial.print(" - Exists: ");
-    Serial.println(fileExists ? "Yes" : "No");
+    SerialPrint("File: ");
+    SerialPrint(filename);
+    SerialPrint(" - Exists: ");
+    SerialPrintLn(fileExists ? "Yes" : "No");
 
     if (!fileExists) {
       return false;  // If any file is missing, return false

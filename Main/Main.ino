@@ -8,11 +8,13 @@
 #include "web_handler_functions.h"
 #include "file_handler_functions.h"
 #include "ESP8266TimerInterrupt.h"
+#include "utils.h"
 #include <MD_MAX72xx.h>
 #include <LittleFS.h>
 
-#define TEST 1                   // Enable Testing Of Hardware
+#define TEST 0                   // Enable Testing Of Hardware
 #define STATION_MODE_SELECTOR 1  // WIFI Acesspoint Modes
+#define SERIAL_ENABLE 0
 
 #define  TEXTSCROLLDELAY  100  // in milliseconds
 #define HARDWARE_TYPE MD_MAX72XX::GENERIC_HW
@@ -54,6 +56,9 @@ bool isBeeping = false;
 long long story_scene = 0;
 long long scene_dialogue_count = 0;
 
+long ledRunIndex = 0;
+bool ledRunState = true;
+
 const String dialogue_file_path = "/dialogue_persist.bin";
 
 String pastDialogue = "--Insert past dialogue here--";
@@ -65,8 +70,10 @@ ESP8266Timer ITimer;
 // Create an instance of the HTTPUpdateServer class
 ESP8266HTTPUpdateServer httpUpdater;
 
-void scrollText(const char* p)
-{
+WiFiEventHandler wifiConnectHandler;
+WiFiEventHandler wifiDisconnectHandler;
+
+void scrollText(const char* p) {
   uint8_t charWidth;
   uint8_t cBuf[8];  // this should be ok for all built-in fonts
 
@@ -102,7 +109,6 @@ double DBToLinear(long long val) {
   return (double)pow(10, val / 10.0);
 }
 
-
 // Beep the buzzer, and alternate the threshold millis depending if currently on beep or off beep
 void IRAM_ATTR beep() {
   if (millis() - last_beep_millis > threshold_millis) {
@@ -117,74 +123,99 @@ double mapDouble(double x, double in_min, double in_max, double out_min, double 
   return (double)(x - in_min) * (out_max - out_min) / (double)(in_max - in_min) + out_min;
 }
 
+void onWifiConnect(const WiFiEventStationModeGotIP& event) {
+  SerialPrintLn("Connected to Wi-Fi sucessfully.");
+  SerialPrint("IP address: ");
+  SerialPrintLn(WiFi.localIP());
+}
+
+void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
+  SerialPrintLn("Disconnected from Wi-Fi, trying to connect...");
+  WiFi.disconnect();
+  WiFi.begin(ssid, password);
+}
+
 void setup() {
+
+#if SERIAL_ENABLE
   Serial.begin(115200);
-  Serial.println();
+#endif
+
+  SerialPrintLn();
+
+#if STATION_MODE_SELECTOR == 1
+  //Register wifi event handlers
+  wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
+  wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
+#endif
 
   pinMode(button_pin, INPUT_PULLUP);
-
   pinMode(buzzer_pin, OUTPUT);
   digitalWrite(buzzer_pin, LOW);
 
   randomSeed(analogRead(A0));
-
-  // WIFI CONFIG
-  if (STATION_MODE_SELECTOR) {
-    // Connect to the "Storm PTCL" WiFi network with the specified password
-    WiFi.begin(ssid, password);
-    Serial.print("Connecting to WiFi ");
-    while (WiFi.status() != WL_CONNECTED) {
-      Serial.print(".");
-      delay(100);
-    }
-    Serial.println(".");
-    Serial.println("Connected to WiFi");
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    // Configure the Access Point
-    WiFi.softAP("Test", "");
-
-    // Get the IP address of the Access Point
-    IPAddress apIP = WiFi.softAPIP();
-    Serial.print("Access Point IP address: ");
-    Serial.println(apIP);
-  }
-
-  // File system initialised
-  if (!LittleFS.begin()) {
-    Serial.println("LittleFS initialization failed!");
-  } else {
-    Serial.println("LittleFS OK");
-  }
-
-  if (!checkIfAllDataFileExists()) {
-    Serial.println("Not all required files are on little FS!");
-  } else {
-    Serial.println("Data Files on Little FS OK");
-  }
-
-  Serial.println("Reading presistant data");
-  if (fileExists(dialogue_file_path)) {
-    readPersistedDialogue(story_scene, scene_dialogue_count);
-    Serial.println("File exists. Values read from file:");
-    Serial.println("story_scene: " + String(story_scene));
-    Serial.println("scene_dialogue_count: " + String(scene_dialogue_count));
-  } else {
-    // If the file doesn't exist, create it with initial data "0,0"
-    updatePersistedDialogue(0LL, 0LL);
-    Serial.println("File doesn't exist. Created with initial values 0, 0.");
-  }
-  Serial.println("File reading done");
 
   // MATRIX BEGIN
   mx.begin();
 
   for (int i = 0; i < 8; i++) {
     for (int j = 0; j < 8; j++) {
-      mx.setPoint(i, j, true);
+      mx.setPoint(ledRunIndex / 8, ledRunIndex % 8, ledRunState);
+      ledRunIndex++;
     }
   }
+  ledRunIndex = 0;
+
+  // WIFI CONFIG
+  if (STATION_MODE_SELECTOR) {
+    // Connect to the "Storm PTCL" WiFi network with the specified password
+    WiFi.begin(ssid, password);
+    SerialPrint("Connecting to WiFi ");
+    while (WiFi.status() != WL_CONNECTED) {
+      SerialPrint(".");
+      scrollText("Booting");
+      //delay(100);
+    }
+
+    SerialPrintLn(".");
+    SerialPrintLn("Connected to WiFi");
+    SerialPrint("IP address: ");
+    SerialPrintLn(WiFi.localIP());
+  } else {
+    // Configure the Access Point
+    WiFi.softAP("Test", "");
+
+    // Get the IP address of the Access Point
+    IPAddress apIP = WiFi.softAPIP();
+    SerialPrint("Access Point IP address: ");
+    SerialPrintLn(apIP);
+  }
+
+  // File system initialised
+  if (!LittleFS.begin()) {
+    SerialPrintLn("LittleFS initialization failed!");
+  } else {
+    SerialPrintLn("LittleFS OK");
+  }
+
+  if (!checkIfAllDataFileExists()) {
+    SerialPrintLn("Not all required files are on little FS!");
+  } else {
+    SerialPrintLn("Data Files on Little FS OK");
+  }
+
+  SerialPrintLn("Reading presistant data");
+  if (fileExists(dialogue_file_path)) {
+    readPersistedDialogue(story_scene, scene_dialogue_count);
+    SerialPrintLn("File exists. Values read from file:");
+    SerialPrintLn("story_scene: " + String(story_scene));
+    SerialPrintLn("scene_dialogue_count: " + String(scene_dialogue_count));
+  } else {
+    // If the file doesn't exist, create it with initial data "0,0"
+    updatePersistedDialogue(0LL, 0LL);
+    SerialPrintLn("File doesn't exist. Created with initial values 0, 0.");
+  }
+  SerialPrintLn("File reading done");
 
   // OTA CONFIG
 
@@ -211,94 +242,98 @@ void setup() {
     }
 
     // NOTE: if updating FS this would be the place to unmount FS using FS.end()
-    Serial.println("Start updating " + type);
-    });
+    SerialPrintLn("Start updating " + type);
+  });
   ArduinoOTA.onEnd([]() {
-    Serial.println("\nEnd");
-    });
+    SerialPrintLn("\nEnd");
+  });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-    });
+  });
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf("Error[%u]: ", error);
     if (error == OTA_AUTH_ERROR) {
-      Serial.println("Auth Failed");
+      SerialPrintLn("Auth Failed");
     } else if (error == OTA_BEGIN_ERROR) {
-      Serial.println("Begin Failed");
+      SerialPrintLn("Begin Failed");
     } else if (error == OTA_CONNECT_ERROR) {
-      Serial.println("Connect Failed");
+      SerialPrintLn("Connect Failed");
     } else if (error == OTA_RECEIVE_ERROR) {
-      Serial.println("Receive Failed");
+      SerialPrintLn("Receive Failed");
     } else if (error == OTA_END_ERROR) {
-      Serial.println("End Failed");
+      SerialPrintLn("End Failed");
     }
-    });
+  });
 
   ArduinoOTA.begin();
-  Serial.println("OTA OK");
+  SerialPrintLn("OTA OK");
 
   // TIMER CONFIG
   if (ITimer.attachInterruptInterval(1000, beep)) {
-    Serial.println("ITimer OK");
+    SerialPrintLn("ITimer OK");
   } else {
-    Serial.println("Can't set ITimer correctly");
+    SerialPrintLn("Can't set ITimer correctly");
   }
   //ITimer.disableTimer();
 
   // SERVER CONFIG
   server.on("/", HTTP_GET, [&]() {
     handleRoot(server, dialogReady);
-    });
+  });
 
   server.on("/bootTime", HTTP_GET, [&]() {
     handleBootTime(server);
-    });
+  });
 
   server.on("/entered", HTTP_GET, [&]() {
     handleCMD(server, teamName, buzzer_pin);
-    });
+  });
 
   server.on("/rawData", HTTP_GET, [&]() {
     handleRawData(server, rawData);
-    });
+  });
 
   server.on("/dialogReady", HTTP_GET, [&]() {
     handleDialogReady(server, dialogReady, scene_dialogue_completed);
-    });
+  });
 
   server.on("/pastDialogue", HTTP_GET, [&]() {
     handlePastDialogue(server, dialogues, scene_dialogue_completed, story_scene, scene_dialogue_count);
-    });
+  });
 
   server.on("/latestDialogue", HTTP_GET, [&]() {
     handleLatestDialogue(server, dialogues, buzzer_pin, story_scene, scene_dialogue_count, dialogues_count, dialogReady, scene_dialogue_completed, scan_for_rssi);
-    });
+  });
 
   server.on("/littleFS", HTTP_GET, [&]() {
     handleFSContent(server, dialogue_file_path);
-    });
+  });
 
   server.on("/video", HTTP_GET, [&]() {
     handleMKV(server);
-    });
+  });
 
   server.on("/reset", HTTP_GET, [&]() {
     ESP.reset();
-    });
+  });
+
+  //server.on("/aa", HTTP_GET, [&]() {
+  //  server.send(200, "text/plain", String(ledRunIndex) + " " + String(ledRunState));
+  //});
 
   server.begin();
-  Serial.println("Web Server OK");
+  SerialPrintLn("Web Server OK");
 
   // Setup the HTTPUpdateServer
   httpUpdater.setup(&server);
-  Serial.println("HTTP OTA Update Server OK");
+  SerialPrintLn("HTTP OTA Update Server OK");
 
   MDNS.begin("esp8266");
-  Serial.println("MDNS Server OK");
+  SerialPrintLn("MDNS Server OK");
 
   // Output Chip ID
-  Serial.print("Chip ID: 0x");
-  Serial.println(ESP.getChipId(), HEX);
+  SerialPrint("Chip ID: 0x");
+  SerialPrintLn2(ESP.getChipId(), HEX);
 
   if (TEST) {
     //Test Buzzer
@@ -330,21 +365,22 @@ void setup() {
       }
     }
 
-    scrollText("TECHWARS - CARDY");
+    scrollText(("TECHWARS - CARDY" + String(micros())).c_str());
   }
 
-  // Set matrix to all on
+  // Set matrix to all off
   for (int i = 0; i < 8; i++) {
     for (int j = 0; j < 8; j++) {
-      mx.setPoint(i, j, true);
+      mx.setPoint(i, j, false);
     }
   }
 
-  Serial.print("Boot Completed in: ");
-  Serial.print(millis());
-  Serial.print("ms ");
-  Serial.print(micros());
-  Serial.println("us");
+  SerialPrint("Boot Completed in: ");
+  SerialPrint(millis());
+  SerialPrint("ms ");
+  SerialPrint(micros());
+  SerialPrintLn("us");
+
 }
 
 void loop() {
@@ -358,7 +394,7 @@ void loop() {
       off_beep = duration;
 
       //ITimer.setInterval(duration * 1000, beep);
-      Serial.println(duration);
+      SerialPrintLn(duration);
 
 
       if (signalStrength <= -20) {
@@ -379,8 +415,27 @@ void loop() {
       dialogReady = true;
     }
   }
+
   server.handleClient();
   ArduinoOTA.handle();
 
-  //Serial.println(String(story_scene) + " " + String(scene_dialogue_count));
+  mx.setPoint(ledRunIndex / 8, ledRunIndex % 8, ledRunState);
+  ledRunIndex++;
+
+  if (ledRunIndex > 63) {
+    ledRunIndex = 0;
+    ledRunState = !ledRunState;
+  }
+
+  for (char a = 0; a < 0xf; a++) {
+    mx.control(MD_MAX72XX::INTENSITY, a);
+    delay(5);
+  }
+
+  for (char a = 0xf; a > 0x0; a--) {
+    mx.control(MD_MAX72XX::INTENSITY, a);
+    delay(5);
+  }
+
+  //SerialPrintLn(String(micros()));// + " " + String(scene_dialogue_count));
 }

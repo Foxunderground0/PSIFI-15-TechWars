@@ -1,6 +1,7 @@
 #pragma once
 #include <LittleFS.h>
 #include "file_handler_functions.h"
+#include "utils.h"
 
 void handleRoot(ESP8266WebServer& server, bool& dialogReady) {
   const char* gzFilePath = "/index.html.gz"; // Adjust the path as needed
@@ -146,7 +147,7 @@ inline void handleLatestDialogue(ESP8266WebServer& server, const String(&dialogu
 
 inline void handleCMD(ESP8266WebServer& server, const String& teamName, const int& buzzer_pin) {
   String command = server.arg("command");
-  Serial.println(command);
+  SerialPrintLn(command);
   String response = "";
 
   if (command == "help") {

@@ -46,7 +46,7 @@ def generate_spectrogram(file_path, output_path):
 
     # Set the frequency range to display (30 Hz to 200 Hz)
     plt.pcolormesh(t, f[freq_mask], 10 * np.log10(Sxx + 1e-10),
-                   shading='auto', cmap='gray_r', vmin=-50, vmax=50)
+                   shading='auto', cmap='flag', vmin=-50, vmax=50)
     plt.ylabel('Frequency (Hz)')
     plt.xlabel('Time (s)')
     plt.title(
