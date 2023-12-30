@@ -29,7 +29,7 @@ def process_images(input_folder, output_folder, size=512):
                 new_width = int(size * aspect_ratio)
                 new_height = size
 
-            img = img.resize((new_width, new_height), Image.BICUBIC)
+            img = img.resize((new_width, new_height), Image.LANCZOS)
 
             # Crop to 512x512 in the center
             left = (img.width - size) // 2
