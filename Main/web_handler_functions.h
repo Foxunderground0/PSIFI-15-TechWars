@@ -3,28 +3,46 @@
 #include "file_handler_functions.h"
 #include "utils.h"
 
-void handleRoot(ESP8266WebServer& server, bool& dialogReady) {
-  const char* gzFilePath = "/index.html.gz"; // Adjust the path as needed
+void handleRoot(ESP8266WebServer& server, bool& dialogReady, bool& isGame) {
+  if (isGame) {
+    const char* gzFilePath = "/game.html.gz"; // Adjust the path as needed
 
-  // Open the compressed file from LittleFS
-  File gzFile = LittleFS.open(gzFilePath, "r");
-  if (!gzFile) {
-    server.send(500, "text/plain", "Failed to open compressed file for reading");
-    return;
+    // Open the compressed file from LittleFS
+    File gzFile = LittleFS.open(gzFilePath, "r");
+    if (!gzFile) {
+      server.send(500, "text/plain", "Failed to open compressed file for reading");
+      return;
+    }
+
+    // Send the gzipped file content
+    server.streamFile(gzFile, "text/html");
+
+    // Close the file
+    gzFile.close();
+  } else {
+    const char* gzFilePath = "/index.html.gz"; // Adjust the path as needed
+
+    // Open the compressed file from LittleFS
+    File gzFile = LittleFS.open(gzFilePath, "r");
+    if (!gzFile) {
+      server.send(500, "text/plain", "Failed to open compressed file for reading");
+      return;
+    }
+
+    // -- Apparently it automatically detects that the encoding is .gz so we dont explicitly need to define this --
+    // Set the Content-Encoding header to indicate gzip compression
+    //server.sendHeader("Content-Encoding", "gzip");
+
+    // Send the gzipped file content
+    server.streamFile(gzFile, "text/html");
+
+    // Close the file
+    gzFile.close();
+
+    // Set dialogReady to true after sending the response
+    dialogReady = true;
   }
 
-  // -- Apparently it automatically detects that the encoding is .gz so we dont explicitly need to define this --
-  // Set the Content-Encoding header to indicate gzip compression
-  //server.sendHeader("Content-Encoding", "gzip");
-
-  // Send the gzipped file content
-  server.streamFile(gzFile, "text/html");
-
-  // Close the file
-  gzFile.close();
-
-  // Set dialogReady to true after sending the response
-  dialogReady = true;
 }
 
 inline void handleMKV(ESP8266WebServer& server) {

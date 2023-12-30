@@ -52,6 +52,7 @@ bool dialogReady = true;
 bool scene_dialogue_completed = false;
 bool scan_for_rssi = false;
 bool isBeeping = false;
+bool isGame = true; // Serves JS game at the start
 
 long long story_scene = 0;
 long long scene_dialogue_count = 0;
@@ -278,7 +279,7 @@ void setup() {
 
   // SERVER CONFIG
   server.on("/", HTTP_GET, [&]() {
-    handleRoot(server, dialogReady);
+    handleRoot(server, dialogReady, isGame);
   });
 
   server.on("/bootTime", HTTP_GET, [&]() {
@@ -316,6 +317,13 @@ void setup() {
   server.on("/reset", HTTP_GET, [&]() {
     ESP.reset();
   });
+
+  server.on("/verified", HTTP_GET, [&]() {
+    isGame = false;
+    server.sendHeader("Location", "/", true);  // Set the "Location" header to "/"
+    server.send(308, "text/plain", "");        // Respond with a 308 status code
+  });
+
 
   //server.on("/aa", HTTP_GET, [&]() {
   //  server.send(200, "text/plain", String(ledRunIndex) + " " + String(ledRunState));
