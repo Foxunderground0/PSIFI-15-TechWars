@@ -244,13 +244,13 @@ void setup() {
 
     // NOTE: if updating FS this would be the place to unmount FS using FS.end()
     SerialPrintLn("Start updating " + type);
-  });
+    });
   ArduinoOTA.onEnd([]() {
     SerialPrintLn("\nEnd");
-  });
+    });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-  });
+    });
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf("Error[%u]: ", error);
     if (error == OTA_AUTH_ERROR) {
@@ -264,7 +264,7 @@ void setup() {
     } else if (error == OTA_END_ERROR) {
       SerialPrintLn("End Failed");
     }
-  });
+    });
 
   ArduinoOTA.begin();
   SerialPrintLn("OTA OK");
@@ -280,49 +280,49 @@ void setup() {
   // SERVER CONFIG
   server.on("/", HTTP_GET, [&]() {
     handleRoot(server, dialogReady, isGame);
-  });
+    });
 
   server.on("/bootTime", HTTP_GET, [&]() {
     handleBootTime(server);
-  });
+    });
 
   server.on("/entered", HTTP_GET, [&]() {
     handleCMD(server, teamName, buzzer_pin);
-  });
+    });
 
   server.on("/rawData", HTTP_GET, [&]() {
     handleRawData(server, rawData);
-  });
+    });
 
   server.on("/dialogReady", HTTP_GET, [&]() {
     handleDialogReady(server, dialogReady, scene_dialogue_completed);
-  });
+    });
 
   server.on("/pastDialogue", HTTP_GET, [&]() {
     handlePastDialogue(server, dialogues, scene_dialogue_completed, story_scene, scene_dialogue_count);
-  });
+    });
 
   server.on("/latestDialogue", HTTP_GET, [&]() {
     handleLatestDialogue(server, dialogues, buzzer_pin, story_scene, scene_dialogue_count, dialogues_count, dialogReady, scene_dialogue_completed, scan_for_rssi);
-  });
+    });
 
   server.on("/littleFS", HTTP_GET, [&]() {
     handleFSContent(server, dialogue_file_path);
-  });
+    });
 
   server.on("/video", HTTP_GET, [&]() {
     handleMKV(server);
-  });
+    });
 
   server.on("/reset", HTTP_GET, [&]() {
     ESP.reset();
-  });
+    });
 
   server.on("/verified", HTTP_GET, [&]() {
     isGame = false;
     server.sendHeader("Location", "/", true);  // Set the "Location" header to "/"
     server.send(308, "text/plain", "");        // Respond with a 308 status code
-  });
+    });
 
 
 
