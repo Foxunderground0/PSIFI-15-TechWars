@@ -153,7 +153,7 @@ inline void handleLatestDialogue(ESP8266WebServer& server, const String(&dialogu
     scene_dialogue_completed = true;
 
     if (story_scene == 1) {
-      //scan_for_rssi = true;
+      scan_for_rssi = true;
     }
 
   } else {

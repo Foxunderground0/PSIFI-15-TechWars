@@ -9,20 +9,21 @@
 #include "file_handler_functions.h"
 #include "ESP8266TimerInterrupt.h"
 #include "utils.h"
+#include "buttons.h"
 #include <MD_MAX72xx.h>
 #include <LittleFS.h>
 
 #define TEST 0                   // Enable Testing Of Hardware
-#define STATION_MODE_SELECTOR 1  // WIFI Acesspoint Modes
+#define STATION_MODE_SELECTOR 0  // WIFI Acesspoint Modes
 #define SERIAL_ENABLE 0
 
 #define  TEXTSCROLLDELAY  100  // in milliseconds
-#define HARDWARE_TYPE MD_MAX72XX::GENERIC_HW
+#define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 1
 
-#define CLK_PIN D5   //14 or SCK
-#define DATA_PIN D7  //13 or MOSI
-#define CS_PIN D6    //12 or SS
+#define CLK_PIN 14   //14 or SCK
+#define DATA_PIN 13  //13 or MOSI
+#define CS_PIN 12    //12 or SS
 
 // Select a Timer Clock
 #define USING_TIM_DIV1 false    // for shortest and most accurate timer
@@ -33,8 +34,40 @@ MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
 long TIMER_INTERVAL_MS = 4000;  //4ms
 
-const int buzzer_pin = 4;
-const int button_pin = D1;
+/*
+   Button map
+
+   A
+   B  E
+   C  D
+
+*/
+
+const int button_pin_a = 15;
+const int button_pin_b = 16;
+const int button_pin_c = 0;
+const int button_pin_d = 4;
+const int button_pin_e = 2;
+
+// Variables for button states and last press time
+volatile bool state_a = HIGH;
+volatile bool state_b = HIGH;
+volatile bool state_c = HIGH;
+volatile bool state_d = HIGH;
+volatile bool state_e = HIGH;
+
+unsigned long lastPressTime_a = 0;
+unsigned long lastPressTime_b = 0;
+unsigned long lastPressTime_c = 0;
+unsigned long lastPressTime_d = 0;
+unsigned long lastPressTime_e = 0;
+
+const unsigned long debounceThreshold = 1;  // Adjust the threshold as needed
+const unsigned long force_off_time_threshold = 100 - 5;
+
+const int buzzer_pin = 5;
+const int led_pin_y = 3;
+const int led_pin_g = 7;
 
 const char* ssid = "Storm PTCL";
 const char* password = "35348E80687?!";
@@ -54,6 +87,7 @@ bool scan_for_rssi = false;
 bool isBeeping = false;
 bool isGame = true; // Serves JS game at the start
 
+
 long long story_scene = 0;
 long long scene_dialogue_count = 0;
 
@@ -71,8 +105,10 @@ ESP8266Timer ITimer;
 // Create an instance of the HTTPUpdateServer class
 ESP8266HTTPUpdateServer httpUpdater;
 
+#if STATION_MODE_SELECTOR
 WiFiEventHandler wifiConnectHandler;
 WiFiEventHandler wifiDisconnectHandler;
+#endif
 
 void scrollText(const char* p) {
   uint8_t charWidth;
@@ -112,6 +148,7 @@ double DBToLinear(long long val) {
 
 // Beep the buzzer, and alternate the threshold millis depending if currently on beep or off beep
 void IRAM_ATTR beep() {
+
   if (millis() - last_beep_millis > threshold_millis) {
     isBeeping = !isBeeping;
     digitalWrite(buzzer_pin, isBeeping);
@@ -136,6 +173,40 @@ void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
   WiFi.begin(ssid, password);
 }
 
+void IRAM_ATTR checkForceOffTimeThreshold() {
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - lastPressTime_a >= force_off_time_threshold) {
+    if (digitalRead(button_pin_a) == HIGH) {
+      state_a = HIGH;
+    }
+  }
+
+  if (currentMillis - lastPressTime_b >= force_off_time_threshold) {
+    if (digitalRead(button_pin_b) == HIGH) {
+      state_b = HIGH;
+    }
+  }
+
+  if (currentMillis - lastPressTime_c >= force_off_time_threshold) {
+    if (digitalRead(button_pin_c) == HIGH) {
+      state_c = HIGH;
+    }
+  }
+
+  if (currentMillis - lastPressTime_d >= force_off_time_threshold) {
+    if (digitalRead(button_pin_d) == HIGH) {
+      state_d = HIGH;
+    }
+  }
+
+  if (currentMillis - lastPressTime_e >= force_off_time_threshold) {
+    if (digitalRead(button_pin_e) == HIGH) {
+      state_e = HIGH;
+    }
+  }
+}
+
 void setup() {
 
 #if SERIAL_ENABLE
@@ -144,15 +215,32 @@ void setup() {
 
   SerialPrintLn();
 
-#if STATION_MODE_SELECTOR == 1
+#if STATION_MODE_SELECTOR
   //Register wifi event handlers
   wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
   wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
 #endif
 
-  pinMode(button_pin, INPUT_PULLUP);
+  // Set the button pins to input
+  pinMode(button_pin_a, INPUT);
+  //pinMode(button_pin_b, INPUT);
+  pinMode(button_pin_c, INPUT);
+  pinMode(button_pin_d, INPUT);
+  pinMode(button_pin_e, INPUT);
+
+  // Attach interrupts
+  attachInterrupt(digitalPinToInterrupt(button_pin_a), buttonA_ISR, CHANGE);
+  //attachInterrupt(digitalPinToInterrupt(button_pin_b), buttonB_ISR, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(button_pin_c), buttonC_ISR, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(button_pin_d), buttonD_ISR, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(button_pin_e), buttonE_ISR, CHANGE);
+
   pinMode(buzzer_pin, OUTPUT);
+  //pinMode(led_pin_y, OUTPUT);
+  //pinMode(led_pin_g, OUTPUT);
   digitalWrite(buzzer_pin, LOW);
+  //digitalWrite(led_pin_y, LOW);
+  //digitalWrite(led_pin_g, LOW);
 
   randomSeed(analogRead(A0));
 
@@ -244,13 +332,13 @@ void setup() {
 
     // NOTE: if updating FS this would be the place to unmount FS using FS.end()
     SerialPrintLn("Start updating " + type);
-    });
+  });
   ArduinoOTA.onEnd([]() {
     SerialPrintLn("\nEnd");
-    });
+  });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-    });
+  });
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf("Error[%u]: ", error);
     if (error == OTA_AUTH_ERROR) {
@@ -264,65 +352,78 @@ void setup() {
     } else if (error == OTA_END_ERROR) {
       SerialPrintLn("End Failed");
     }
-    });
+  });
 
   ArduinoOTA.begin();
   SerialPrintLn("OTA OK");
 
   // TIMER CONFIG
-  if (ITimer.attachInterruptInterval(1000, beep)) {
+  if (ITimer.attachInterruptInterval(1000, beep)) { // 1ms
     SerialPrintLn("ITimer OK");
   } else {
     SerialPrintLn("Can't set ITimer correctly");
   }
+
+  if (ITimer.attachInterruptInterval(1000, buttonB_ISR)) { // 1ms
+    SerialPrintLn("GPIO 16 Interrupt OK");
+  } else {
+    SerialPrintLn("Can't set GPIO 16 Interrupts");
+  }
+
+  if (ITimer.attachInterruptInterval(100 * 1000, checkForceOffTimeThreshold)) { //100ms
+    SerialPrintLn("Force On Interrupt OK");
+  } else {
+    SerialPrintLn("Can't set Force Off Interrupts");
+  }
+
   //ITimer.disableTimer();
 
   // SERVER CONFIG
   server.on("/", HTTP_GET, [&]() {
     handleRoot(server, dialogReady, isGame);
-    });
+  });
 
   server.on("/bootTime", HTTP_GET, [&]() {
     handleBootTime(server);
-    });
+  });
 
   server.on("/entered", HTTP_GET, [&]() {
     handleCMD(server, teamName, buzzer_pin);
-    });
+  });
 
   server.on("/rawData", HTTP_GET, [&]() {
     handleRawData(server, rawData);
-    });
+  });
 
   server.on("/dialogReady", HTTP_GET, [&]() {
     handleDialogReady(server, dialogReady, scene_dialogue_completed);
-    });
+  });
 
   server.on("/pastDialogue", HTTP_GET, [&]() {
     handlePastDialogue(server, dialogues, scene_dialogue_completed, story_scene, scene_dialogue_count);
-    });
+  });
 
   server.on("/latestDialogue", HTTP_GET, [&]() {
     handleLatestDialogue(server, dialogues, buzzer_pin, story_scene, scene_dialogue_count, dialogues_count, dialogReady, scene_dialogue_completed, scan_for_rssi);
-    });
+  });
 
   server.on("/littleFS", HTTP_GET, [&]() {
     handleFSContent(server, dialogue_file_path);
-    });
+  });
 
   server.on("/video", HTTP_GET, [&]() {
     handleMKV(server);
-    });
+  });
 
   server.on("/reset", HTTP_GET, [&]() {
     ESP.reset();
-    });
+  });
 
   server.on("/verified", HTTP_GET, [&]() {
     isGame = false;
     server.sendHeader("Location", "/", true);  // Set the "Location" header to "/"
     server.send(308, "text/plain", "");        // Respond with a 308 status code
-    });
+  });
 
 
 
@@ -345,6 +446,10 @@ void setup() {
   SerialPrintLn2(ESP.getChipId(), HEX);
 
   if (TEST) {
+    // Set Led Pins High
+    //digitalWrite(led_pin_y, HIGH);
+    //digitalWrite(led_pin_g, HIGH);
+
     //Test Buzzer
     digitalWrite(buzzer_pin, HIGH);
     delay(100);
@@ -375,12 +480,16 @@ void setup() {
     }
 
     scrollText(("TECHWARS - CARDY" + String(micros())).c_str());
+
+    // Set LED pins low
+    //digitalWrite(led_pin_y, LOW);
+    //digitalWrite(led_pin_g, LOW);
   }
 
-  // Set matrix to all off
+  // Set matrix to all on
   for (int i = 0; i < 8; i++) {
     for (int j = 0; j < 8; j++) {
-      mx.setPoint(i, j, false);
+      mx.setPoint(i, j, true);
     }
   }
 
@@ -417,34 +526,48 @@ void loop() {
       }
     }
 
-    if (digitalRead(button_pin) == LOW) {
-      digitalWrite(buzzer_pin, HIGH);
-      delay(100);
-      digitalWrite(buzzer_pin, LOW);
-      dialogReady = true;
-    }
+
+  }
+
+
+  if (state_a == LOW) {
+    digitalWrite(buzzer_pin, HIGH);
+    delay(100);
+    digitalWrite(buzzer_pin, LOW);
+    //dialogReady = true;
+    scene_dialogue_completed = true;
+    scan_for_rssi = true;
+  }
+
+  if (state_a == LOW || state_b == LOW || state_c == LOW || state_d == LOW || state_e == LOW) {
+    // If any button is pressed, set intensity to 0xf
+    mx.control(MD_MAX72XX::INTENSITY, 0xf);
+  } else {
+    // If no button is pressed, set intensity to 0x0
+    mx.control(MD_MAX72XX::INTENSITY, 0x0);
   }
 
   server.handleClient();
   ArduinoOTA.handle();
+  delay(10);
+  /*
+    mx.setPoint(ledRunIndex / 8, ledRunIndex % 8, ledRunState);
+    ledRunIndex++;
 
-  mx.setPoint(ledRunIndex / 8, ledRunIndex % 8, ledRunState);
-  ledRunIndex++;
+    if (ledRunIndex > 63) {
+      ledRunIndex = 0;
+      ledRunState = !ledRunState;
+    }
 
-  if (ledRunIndex > 63) {
-    ledRunIndex = 0;
-    ledRunState = !ledRunState;
-  }
+    for (char a = 0; a < 0xf; a++) {
+      delay(5);
+    }
 
-  for (char a = 0; a < 0xf; a++) {
-    mx.control(MD_MAX72XX::INTENSITY, a);
-    delay(5);
-  }
-
-  for (char a = 0xf; a > 0x0; a--) {
-    mx.control(MD_MAX72XX::INTENSITY, a);
-    delay(5);
-  }
+    for (char a = 0xf; a > 0x0; a--) {
+      mx.control(MD_MAX72XX::INTENSITY, a);
+      delay(5);
+    }
+  */
 
   //SerialPrintLn(String(micros()));// + " " + String(scene_dialogue_count));
 }
