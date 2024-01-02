@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <title>Techwars Round 2</title>
+        <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #0f0f0f;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-container {
+            background: #333;
+            padding: 40px 60px;
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        h2 {
+            margin: 0 0 20px;
+            padding-bottom: 10px;
+            color: #379F9E;
+            border-bottom: 2px solid #379F9E;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 95%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #555;
+            background: #222;
+            color: white;
+            border-radius: 2px;
+        }
+
+        input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 2px;
+            background-color: #379F9E;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #379F9E;
+        }
+
+        .message,
+        .attempts {
+            margin-top: 15px;
+            font-size: 0.8em;
+            color: #bbb;
+        }
+        </style>
+    </head>
+    
+    
+    <body>
+        <div class="login-container">
+            <h2>TECHWARS LOGIN</h2>
+            <form id="loginForm">
+                <input type="text" id="username" placeholder="Username" required>
+                <input type="password" id="password" placeholder="Password" required>
+                <input type="submit" value="Login">
+            </form>
+            <div class="message"></div>
+            <div class="attempts">Attempts Left: 3</div>
+        </div>
+    
+        <!--
+        <script>
+        let correctUsername = "";
+        let correctPassword = "";
+        let attemptsLeft = 3;
+    
+        // Function to fetch login and password from the "/getLoginINfo" endpoint
+        function fetchLoginData() {
+            // Replace this with actual code to fetch data from your server
+            // For demonstration purposes, I'm using a simple fetch call
+            return fetch('/getLoginInfo')
+                .then(response => response.json())
+                .then(data => {
+                    correctUsername = data.username;
+                    correctPassword = data.password;
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        }
+    
+        // Initial fetch of login data
+        fetchLoginData();
+    
+        document.getElementById('loginForm').onsubmit = function (event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const messageDiv = document.querySelector('.message');
+            const attemptsDiv = document.querySelector('.attempts');
+    
+            if (username === correctUsername && password === correctPassword) {
+                messageDiv.textContent = "Access Granted! Now concatenate the Username with Password to get the key";
+                messageDiv.style.color = "#379F9E";
+                document.getElementById('loginForm').style.display = "none";
+            } else {
+                attemptsLeft--;
+                messageDiv.textContent = "Access Denied!";
+                messageDiv.style.color = "#f44336";
+                if (attemptsLeft <= 0) {
+                    messageDiv.textContent = "All attempts used!";
+                    attemptsLeft = 3; // Reset attempts count
+                    fetchLoginData().then(() => {
+                        attemptsDiv.textContent = "Attempts left: " + attemptsLeft;
+                    }); // Fetch new login data
+                } else {
+                    attemptsDiv.textContent = "Attempts left: " + attemptsLeft;
+                }
+            }
+        }
+        </script>
+        -->
+        
+        <script>
+const _0xf81736=_0x48ee;(function(_0x34f27f,_0x4c63e9){const _0x5d2cd1=_0x48ee,_0x1dbdda=_0x34f27f();while(!![]){try{const _0x2f1f88=parseInt(_0x5d2cd1(0x13c))/0x1*(-parseInt(_0x5d2cd1(0x144))/0x2)+parseInt(_0x5d2cd1(0x13d))/0x3*(parseInt(_0x5d2cd1(0x136))/0x4)+parseInt(_0x5d2cd1(0x164))/0x5*(-parseInt(_0x5d2cd1(0x13b))/0x6)+parseInt(_0x5d2cd1(0x153))/0x7*(parseInt(_0x5d2cd1(0x139))/0x8)+-parseInt(_0x5d2cd1(0x149))/0x9+-parseInt(_0x5d2cd1(0x142))/0xa*(parseInt(_0x5d2cd1(0x13f))/0xb)+-parseInt(_0x5d2cd1(0x148))/0xc*(-parseInt(_0x5d2cd1(0x14c))/0xd);if(_0x2f1f88===_0x4c63e9)break;else _0x1dbdda['push'](_0x1dbdda['shift']());}catch(_0x53f88a){_0x1dbdda['push'](_0x1dbdda['shift']());}}}(_0x9ca3,0x29d24));function _0x48ee(_0x5174ed,_0x4e21e8){const _0x2976bb=_0x9ca3();return _0x48ee=function(_0x4d2fcf,_0x1f86a3){_0x4d2fcf=_0x4d2fcf-0x12d;let _0x1a69e1=_0x2976bb[_0x4d2fcf];return _0x1a69e1;},_0x48ee(_0x5174ed,_0x4e21e8);}let _0x5f2c06='',_0x4d3a34='',_0x1157e1=0x3,_0x4b8585=![];function _0xf6aa4(){const _0x58bf0f=_0x48ee,_0x386a97=(function(){let _0x12d345=!![];return function(_0x828642,_0x15388b){const _0x46522a=_0x12d345?function(){const _0x5a379c=_0x48ee;if(_0x15388b){const _0x53168=_0x15388b[_0x5a379c(0x12e)](_0x828642,arguments);return _0x15388b=null,_0x53168;}}:function(){};return _0x12d345=![],_0x46522a;};}()),_0x1c3c31=_0x386a97(this,function(){const _0x3762a3=_0x48ee;let _0xe5011;try{const _0x3fa6d3=Function('return\x20(function()\x20'+_0x3762a3(0x154)+');');_0xe5011=_0x3fa6d3();}catch(_0x438019){_0xe5011=window;}const _0x2e1bad=_0xe5011[_0x3762a3(0x146)]=_0xe5011[_0x3762a3(0x146)]||{},_0x4b2861=[_0x3762a3(0x134),_0x3762a3(0x131),_0x3762a3(0x150),'error','exception',_0x3762a3(0x137),_0x3762a3(0x158)];for(let _0x7fcff9=0x0;_0x7fcff9<_0x4b2861[_0x3762a3(0x155)];_0x7fcff9++){const _0x3f31c6=_0x386a97[_0x3762a3(0x141)][_0x3762a3(0x162)]['bind'](_0x386a97),_0x37a1bc=_0x4b2861[_0x7fcff9],_0x246db6=_0x2e1bad[_0x37a1bc]||_0x3f31c6;_0x3f31c6[_0x3762a3(0x14f)]=_0x386a97[_0x3762a3(0x15e)](_0x386a97),_0x3f31c6[_0x3762a3(0x14b)]=_0x246db6[_0x3762a3(0x14b)][_0x3762a3(0x15e)](_0x246db6),_0x2e1bad[_0x37a1bc]=_0x3f31c6;}});return _0x1c3c31(),fetch(_0x58bf0f(0x13a))[_0x58bf0f(0x159)](_0x4d5ce4=>_0x4d5ce4[_0x58bf0f(0x130)]())['then'](_0x9c4b3a=>{const _0x318724=_0x58bf0f;_0x5f2c06=_0x9c4b3a[_0x318724(0x14e)],_0x4d3a34=_0x9c4b3a[_0x318724(0x133)],_0x4b8585=!![],_0x2d4299();})[_0x58bf0f(0x14a)](_0x399229=>console[_0x58bf0f(0x15b)](_0x58bf0f(0x156),_0x399229));}function _0x9ca3(){const _0x2203c9=['catch','toString','78oXllzt','submitBtn','username','__proto__','info','style','#f44336','28DrrRxA','{}.constructor(\x22return\x20this\x22)(\x20)','length','Error\x20fetching\x20data:','value','trace','then','querySelector','error','reload','Access\x20Denied!','bind','disabled','Access\x20Granted!\x20Now\x20concatenate\x20the\x20Username\x20with\x20Password\x20to\x20get\x20the\x20key','preventDefault','prototype','All\x20attempts\x20used!','1625375ARdDhw','getElementById','apply','color','json','warn','#379F9E','password','log','none','4HHMHsk','table','.attempts','544456XQVTZq','/getLoginInfo','6DxRwik','29Rfungk','825615ofCVDW','Attempts\x20left:\x20','43109rwjOGc','loginForm','constructor','40IUCxwi','display','17164TbLhpk','.message','console','textContent','798588pQKTvu','1672182RcJqMz'];_0x9ca3=function(){return _0x2203c9;};return _0x9ca3();}_0xf6aa4();function _0x2d4299(){const _0x31c467=_0x48ee;document[_0x31c467(0x12d)](_0x31c467(0x14e))[_0x31c467(0x15f)]=![],document[_0x31c467(0x12d)]('password')[_0x31c467(0x15f)]=![],document['getElementById'](_0x31c467(0x14d))[_0x31c467(0x15f)]=![];}document['getElementById'](_0xf81736(0x140))['onsubmit']=function(_0x3cb1ca){const _0x36456b=_0xf81736;_0x3cb1ca[_0x36456b(0x161)]();const _0x68aa26=document[_0x36456b(0x12d)](_0x36456b(0x14e))[_0x36456b(0x157)],_0x3f01d2=document[_0x36456b(0x12d)](_0x36456b(0x133))[_0x36456b(0x157)],_0x12b234=document[_0x36456b(0x15a)](_0x36456b(0x145)),_0x462dc5=document[_0x36456b(0x15a)](_0x36456b(0x138));if(!_0x4b8585)return;_0x68aa26===_0x5f2c06&&_0x3f01d2===_0x4d3a34?(_0x12b234[_0x36456b(0x147)]=_0x36456b(0x160),_0x12b234[_0x36456b(0x151)][_0x36456b(0x12f)]=_0x36456b(0x132),document[_0x36456b(0x12d)](_0x36456b(0x140))['style'][_0x36456b(0x143)]=_0x36456b(0x135)):(_0x1157e1--,_0x12b234[_0x36456b(0x147)]=_0x36456b(0x15d),_0x12b234[_0x36456b(0x151)][_0x36456b(0x12f)]=_0x36456b(0x152),_0x1157e1<=0x0?(_0x12b234[_0x36456b(0x147)]=_0x36456b(0x163),_0x1157e1=0x3,_0xf6aa4()['then'](()=>{const _0x5ac1ca=_0x36456b;_0x462dc5[_0x5ac1ca(0x147)]=_0x5ac1ca(0x13e)+_0x1157e1,location[_0x5ac1ca(0x15c)]();})):_0x462dc5[_0x36456b(0x147)]=_0x36456b(0x13e)+_0x1157e1);};
+        </script>
+    </body>
+</html>
