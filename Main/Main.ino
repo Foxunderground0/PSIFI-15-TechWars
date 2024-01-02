@@ -14,8 +14,8 @@
 #include <LittleFS.h>
 
 #define TEST 0                   // Enable Testing Of Hardware
-#define STATION_MODE_SELECTOR 0  // WIFI Acesspoint Modes
-#define SERIAL_ENABLE 1
+#define STATION_MODE_SELECTOR 1  // WIFI Acesspoint Modes
+#define SERIAL_ENABLE 0
 
 #define  TEXTSCROLLDELAY  100  // in milliseconds
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
@@ -441,13 +441,13 @@ void setup() {
 
     // NOTE: if updating FS this would be the place to unmount FS using FS.end()
     SerialPrintLn("Start updating " + type);
-  });
+    });
   ArduinoOTA.onEnd([]() {
     SerialPrintLn("\nEnd");
-  });
+    });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-  });
+    });
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf("Error[%u]: ", error);
     if (error == OTA_AUTH_ERROR) {
@@ -461,7 +461,7 @@ void setup() {
     } else if (error == OTA_END_ERROR) {
       SerialPrintLn("End Failed");
     }
-  });
+    });
 
   ArduinoOTA.begin();
   SerialPrintLn("OTA OK");
@@ -490,47 +490,47 @@ void setup() {
   // SERVER CONFIG
   server.on("/", HTTP_GET, [&]() {
     handleRoot(server, dialogReady, isGame);
-  });
+    });
 
   server.on("/bootTime", HTTP_GET, [&]() {
     handleBootTime(server);
-  });
+    });
 
   server.on("/entered", HTTP_GET, [&]() {
     handleCMD(server, teamName, buzzer_pin);
-  });
+    });
 
   server.on("/rawData", HTTP_GET, [&]() {
     handleRawData(server, rawData);
-  });
+    });
 
   server.on("/dialogReady", HTTP_GET, [&]() {
     handleDialogReady(server, dialogReady, scene_dialogue_completed);
-  });
+    });
 
   server.on("/pastDialogue", HTTP_GET, [&]() {
     handlePastDialogue(server, dialogues, scene_dialogue_completed, story_scene, scene_dialogue_count);
-  });
+    });
 
   server.on("/latestDialogue", HTTP_GET, [&]() {
     handleLatestDialogue(server, dialogues, buzzer_pin, story_scene, scene_dialogue_count, dialogues_count, dialogReady, scene_dialogue_completed, scan_for_rssi);
-  });
+    });
 
   server.on("/littleFS", HTTP_GET, [&]() {
     handleFSContent(server, dialogue_file_path);
-  });
+    });
 
   server.on("/video", HTTP_GET, [&]() {
     handleMKV(server);
-  });
+    });
 
   server.on("/key", HTTP_GET, [&]() {
     handleKey(server, buzzer_pin);
-  });
+    });
 
   server.on("/reset", HTTP_GET, [&]() {
     ESP.reset();
-  });
+    });
 
 
 
@@ -538,7 +538,7 @@ void setup() {
     isGame = false;
     server.sendHeader("Location", "/", true);  // Set the "Location" header to "/"
     server.send(308, "text/plain", "");        // Respond with a 308 status code
-  });
+    });
 
   server.on("/getLoginInfo", HTTP_GET, [&]() {
     // Generate 5-digit random numbers for login and password
@@ -550,12 +550,12 @@ void setup() {
 
     // Send the response
     server.send(200, "application/json", response);
-  });
+    });
 
 
   server.on("/aa", HTTP_GET, [&]() {
     server.send(200, "text/plain", key);
-  });
+    });
 
   server.begin();
   SerialPrintLn("Web Server OK");
