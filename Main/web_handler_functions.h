@@ -5,7 +5,7 @@
 
 void handleRoot(ESP8266WebServer& server, bool& dialogReady, bool& isGame) {
   if (isGame) {
-    const char* gzFilePath = "/game.html.gz"; // Adjust the path as needed
+    const char* gzFilePath = "/login.html.gz"; // Adjust the path as needed
 
     // Open the compressed file from LittleFS
     File gzFile = LittleFS.open(gzFilePath, "r");

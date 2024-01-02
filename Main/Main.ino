@@ -14,7 +14,7 @@
 #include <LittleFS.h>
 
 #define TEST 0                   // Enable Testing Of Hardware
-#define STATION_MODE_SELECTOR 0  // WIFI Acesspoint Modes
+#define STATION_MODE_SELECTOR 1  // WIFI Acesspoint Modes
 #define SERIAL_ENABLE 0
 
 #define  TEXTSCROLLDELAY  100  // in milliseconds
@@ -425,6 +425,17 @@ void setup() {
     server.send(308, "text/plain", "");        // Respond with a 308 status code
   });
 
+  server.on("/getLoginInfo", HTTP_GET, [&]() {
+    // Generate 5-digit random numbers for login and password
+    String login = String(random(10000, 99999));
+    String password = String(random(10000, 99999));
+
+    // Construct the response in JSON-like format
+    String response = "{\"username\":\"" + login + "\",\"password\":\"" + password + "\"}";
+
+    // Send the response
+    server.send(200, "application/json", response);
+  });
 
 
   //server.on("/aa", HTTP_GET, [&]() {

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Techwars Round 2</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #0f0f0f;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-container {
+            background: #333;
+            padding: 40px 60px;
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        h2 {
+            margin: 0 0 20px;
+            padding-bottom: 10px;
+            color: #379F9E;
+            border-bottom: 2px solid #379F9E;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 95%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #555;
+            background: #222;
+            color: white;
+            border-radius: 2px;
+        }
+
+        input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 2px;
+            background-color: #379F9E;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #379F9E;
+        }
+
+        .message,
+        .attempts {
+            margin-top: 15px;
+            font-size: 0.8em;
+            color: #bbb;
+        }
+    </style>
+</head>
+
+
+<body>
+
+    <div class="login-container">
+        <h2>TECHWARS LOGIN</h2>
+        <form id="loginForm">
+            <input type="text" id="username" placeholder="Username" required>
+            <input type="password" id="password" placeholder="Password" required>
+            <input type="submit" value="Login">
+        </form>
+        <div class="message"></div>
+        <div class="attempts">Attempts Left: 3</div>
+    </div>
+
+    <script>
+        let correctUsername = "";
+        let correctPassword = "";
+        let attemptsLeft = 3;
+
+        // Function to fetch login and password from the "/getData" endpoint
+        function fetchLoginData() {
+            // Replace this with actual code to fetch data from your server
+            // For demonstration purposes, I'm using a simple fetch call
+            fetch('/getLoginInfo')
+                .then(response => response.json())
+                .then(data => {
+                    correctUsername = data.username;
+                    correctPassword = data.password;
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        }
+
+        // Initial fetch of login data
+        fetchLoginData();
+
+        document.getElementById('loginForm').onsubmit = function (event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const messageDiv = document.querySelector('.message');
+            const attemptsDiv = document.querySelector('.attempts');
+
+            if (username === correctUsername && password === correctPassword) {
+                messageDiv.textContent = "Access Granted!";
+                messageDiv.style.color = "#379F9E";
+                document.getElementById('loginForm').style.display = "none";
+            } else {
+                attemptsLeft--;
+                messageDiv.textContent = "Access Denied!";
+                messageDiv.style.color = "#f44336";
+                if (attemptsLeft <= 0) {
+                    messageDiv.textContent = "All attempts used!";
+                    attemptsLeft = 3; // Reset attempts count
+                    fetchLoginData(); // Fetch new login data
+                } else {
+                    attemptsDiv.textContent = "Attempts left: " + attemptsLeft;
+                }
+            }
+        }
+    </script>
+
+</body>
+
+</html>
