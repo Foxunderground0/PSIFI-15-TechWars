@@ -15,7 +15,7 @@
 
 #define TEST 0                   // Enable Testing Of Hardware
 #define STATION_MODE_SELECTOR 0  // WIFI Acesspoint Modes
-#define SERIAL_ENABLE 0
+#define SERIAL_ENABLE 1
 
 #define  TEXTSCROLLDELAY  100  // in milliseconds
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
@@ -34,13 +34,11 @@ MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
 long TIMER_INTERVAL_MS = 4000;  //4ms
 
-/*
-   Button map
+/*Button map
 
    A
    B  E
    C  D
-
 */
 
 const int button_pin_a = 15;
@@ -68,6 +66,15 @@ const unsigned long force_off_time_threshold = 100 - 5;
 const int buzzer_pin = 5;
 const int led_pin_y = 3;
 const int led_pin_g = 7;
+
+// For Morse Code
+
+const int dotDuration = 200; // Duration of a dot in milliseconds
+const int dashDuration = 600; // Duration of a dash in milliseconds
+const int pauseDuration = 200; // Short pause duration in milliseconds
+const int wordPauseDuration = 6000; // Pause between words duration in milliseconds
+const int characterPauseDuration = 3000;
+
 
 const char* ssid = "Storm PTCL";
 const char* password = "35348E80687?!";
@@ -97,6 +104,7 @@ bool ledRunState = true;
 const String dialogue_file_path = "/dialogue_persist.bin";
 
 String pastDialogue = "--Insert past dialogue here--";
+String key = "";  // Global variable to store the key
 
 // Init Server Object
 ESP8266WebServer server(80);
@@ -206,6 +214,107 @@ void IRAM_ATTR checkForceOffTimeThreshold() {
     }
   }
 }
+
+void beepDot() {
+  digitalWrite(buzzer_pin, HIGH);
+  mx.control(MD_MAX72XX::INTENSITY, 0xf);
+  delay(dotDuration);
+  digitalWrite(buzzer_pin, LOW);
+  mx.control(MD_MAX72XX::INTENSITY, 0x0);
+  delay(pauseDuration);
+}
+
+void beepDash() {
+  digitalWrite(buzzer_pin, HIGH);
+  mx.control(MD_MAX72XX::INTENSITY, 0xf);
+  delay(dashDuration);
+  digitalWrite(buzzer_pin, LOW);
+  mx.control(MD_MAX72XX::INTENSITY, 0x0);
+  delay(pauseDuration);
+}
+
+void morseCode(String message) {
+  const char morseCodes[36][6] = {
+    {'.', '-'},   // A
+    {'-', '.', '.', '.'},   // B
+    {'-', '.', '-', '.'},   // C
+    {'-', '.', '.'},   // D
+    {'.', '.'},   // E
+    {'.', '.', '-', '.'},   // F
+    {'-', '-', '.'},   // G
+    {'.', '.', '.', '.'},   // H
+    {'.', '.'},   // I
+    {'.', '-', '-', '-'},   // J
+    {'-', '.', '-'},   // K
+    {'.', '-', '.', '.'},   // L
+    {'-', '-'},   // M
+    {'-', '.'},   // N
+    {'-', '-', '-'},   // O
+    {'.', '-', '-', '.'},   // P
+    {'-', '-', '.', '-'},   // Q
+    {'.', '-', '.'},   // R
+    {'.', '.', '.'},   // S
+    {'-'},   // T
+    {'.', '.', '-'},   // U
+    {'.', '.', '.', '-'},   // V
+    {'.', '-', '-'},   // W
+    {'-', '.', '.', '-'},   // X
+    {'-', '.', '-', '-'},   // Y
+    {'-', '-', '.', '.'},   // Z
+    {'.', '-', '.', '-', '-'},   // 1
+    {'.', '.', '-', '.', '-'},   // 2
+    {'.', '.', '.', '-', '-'},   // 3
+    {'.', '.', '.', '.', '-'},   // 4
+    {'.', '.', '.', '.', '.'},   // 5
+    {'-', '.', '.', '.', '.'},   // 6
+    {'-', '-', '.', '.', '.'},   // 7
+    {'-', '-', '-', '.', '.'},   // 8
+    {'-', '-', '-', '-', '.'},   // 9
+    {'-', '-', '-', '-', '-'}    // 0
+  };
+
+  for (int i = 0; i < message.length(); i++) {
+    char currentChar = toUpperCase(message[i]);
+
+    if (currentChar == ' ') {
+      delay(wordPauseDuration);
+    } else if (currentChar >= 'A' && currentChar <= 'Z') {
+      int index = currentChar - 'A';
+      for (int j = 0; j < sizeof(morseCodes[index]) / sizeof(morseCodes[index][0]); j++) {
+        if (morseCodes[index][j] == '.') {
+          beepDot();
+        } else if (morseCodes[index][j] == '-') {
+          beepDash();
+        }
+      }
+      delay(characterPauseDuration); // Character pause
+    } else if (currentChar >= '0' && currentChar <= '9') {
+      int index = currentChar - '0' + 26; // Map digits to Morse code array
+      for (int j = 0; j < sizeof(morseCodes[index]) / sizeof(morseCodes[index][0]); j++) {
+        if (morseCodes[index][j] == '.') {
+          beepDot();
+        } else if (morseCodes[index][j] == '-') {
+          beepDash();
+        }
+      }
+      delay(characterPauseDuration); // Character pause
+    }
+  }
+}
+
+void displayBinaryString(String str) {
+  int numRows = min(8, (int)str.length());
+
+  for (int row = 0; row < numRows; row++) {
+    char currentChar = str[row];
+    for (int col = 0; col < 8; col++) {
+      int bit = (currentChar >> (7 - col)) & 1; // Reverse the order of columns
+      mx.setPoint(row, 7 - col, bit); // Set LEDs starting from the least significant bit
+      delay(20);
+    }
+  }
+}
+
 
 void setup() {
 
@@ -415,9 +524,15 @@ void setup() {
     handleMKV(server);
   });
 
+  server.on("/key", HTTP_GET, [&]() {
+    handleKey(server, buzzer_pin);
+  });
+
   server.on("/reset", HTTP_GET, [&]() {
     ESP.reset();
   });
+
+
 
   server.on("/verified", HTTP_GET, [&]() {
     isGame = false;
@@ -425,11 +540,22 @@ void setup() {
     server.send(308, "text/plain", "");        // Respond with a 308 status code
   });
 
+  server.on("/getLoginInfo", HTTP_GET, [&]() {
+    // Generate 5-digit random numbers for login and password
+    String login = String(random(10000, 99999));
+    String password = String(random(10000, 99999));
+
+    // Construct the response in JSON-like format
+    String response = "{\"username\":\"" + login + "\",\"password\":\"" + password + "\"}";
+
+    // Send the response
+    server.send(200, "application/json", response);
+  });
 
 
-  //server.on("/aa", HTTP_GET, [&]() {
-  //  server.send(200, "text/plain", String(ledRunIndex) + " " + String(ledRunState));
-  //});
+  server.on("/aa", HTTP_GET, [&]() {
+    server.send(200, "text/plain", key);
+  });
 
   server.begin();
   SerialPrintLn("Web Server OK");
@@ -499,6 +625,20 @@ void setup() {
   SerialPrint(micros());
   SerialPrintLn("us");
 
+  //String message = "35348E80687"; // Replace this with the string you want to encode
+  //morseCode(message);
+
+  //String message = "ABCDEFGH"; // Replace this with your 8-character string
+  //displayBinaryString(message);
+  //delay(100000);
+  /*
+    while (readNextUnenteredKey()) {
+      displayBinaryString(key);  // Process the key
+      markKeyAsUsed(key);
+      delay(4000);
+    }
+  */
+  readNextUnenteredKey();
 }
 
 void loop() {
@@ -525,8 +665,6 @@ void loop() {
         scan_for_rssi = false;
       }
     }
-
-
   }
 
 

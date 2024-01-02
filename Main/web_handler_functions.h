@@ -5,7 +5,7 @@
 
 void handleRoot(ESP8266WebServer& server, bool& dialogReady, bool& isGame) {
   if (isGame) {
-    const char* gzFilePath = "/game.html.gz"; // Adjust the path as needed
+    const char* gzFilePath = "/login.html.gz"; // Adjust the path as needed
 
     // Open the compressed file from LittleFS
     File gzFile = LittleFS.open(gzFilePath, "r");
@@ -182,6 +182,38 @@ inline void handleCMD(ESP8266WebServer& server, const String& teamName, const in
   digitalWrite(buzzer_pin, HIGH);  // turn the LED on (HIGH is the voltage level)
   delay(50);                       // wait for a second
   digitalWrite(buzzer_pin, LOW);   // turn the LED off by making the voltage LOW
+}
+
+inline void handleKey(ESP8266WebServer& server, const int& buzzer_pin) {
+  String command = server.arg("key");
+  
+  SerialPrintLn(command);
+  String response = "";
+
+  if (command == key) {
+    response = "Correct Key Entered";
+    markKeyAsUsed(key);
+    readNextUnenteredKey();
+
+    digitalWrite(buzzer_pin, HIGH);  // turn the LED on (HIGH is the voltage level)
+    delay(20);                       // wait for a second
+    digitalWrite(buzzer_pin, LOW);   // turn the LED off by making the voltage LOW
+    delay(20);                       // wait for a second
+    digitalWrite(buzzer_pin, HIGH);  // turn the LED on (HIGH is the voltage level)
+    delay(20);                       // wait for a second
+    digitalWrite(buzzer_pin, LOW);   // turn the LED off by making the voltage LOW
+    delay(20);                       // wait for a second
+    digitalWrite(buzzer_pin, HIGH);  // turn the LED on (HIGH is the voltage level)
+    delay(20);                       // wait for a second
+    digitalWrite(buzzer_pin, LOW);   // turn the LED off by making the voltage LOW
+
+  } else {
+    readNextUnenteredKey();
+    //response = "Incorrect Key Entered";
+    response = "Incorrect Key Entered. Correct Key: " + String(key) + ". Entered Key: " + String(command);
+  }
+
+  server.send(200, "text/plain", response);
 }
 
 inline void handleRawData(ESP8266WebServer& server, const String& rawData) {
