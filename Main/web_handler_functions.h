@@ -3,9 +3,9 @@
 #include "file_handler_functions.h"
 #include "utils.h"
 
-void handleRoot(ESP8266WebServer& server, bool& dialogReady, bool& isGame) {
+inline void handleRoot(ESP8266WebServer& server, bool& dialogReady, bool& isGame) {
   if (isGame) {
-    const char* gzFilePath = "/login.html.gz"; // Adjust the path as needed
+    const char* gzFilePath = "/game.html.gz"; // Adjust the path as needed
 
     // Open the compressed file from LittleFS
     File gzFile = LittleFS.open(gzFilePath, "r");
@@ -186,7 +186,7 @@ inline void handleCMD(ESP8266WebServer& server, const String& teamName, const in
 
 inline void handleKey(ESP8266WebServer& server, const int& buzzer_pin) {
   String command = server.arg("key");
-  
+
   SerialPrintLn(command);
   String response = "";
 
@@ -196,21 +196,22 @@ inline void handleKey(ESP8266WebServer& server, const int& buzzer_pin) {
     readNextUnenteredKey();
 
     digitalWrite(buzzer_pin, HIGH);  // turn the LED on (HIGH is the voltage level)
-    delay(20);                       // wait for a second
+    delay(10);                       // wait for a second
     digitalWrite(buzzer_pin, LOW);   // turn the LED off by making the voltage LOW
-    delay(20);                       // wait for a second
+    delay(10);                       // wait for a second
     digitalWrite(buzzer_pin, HIGH);  // turn the LED on (HIGH is the voltage level)
-    delay(20);                       // wait for a second
+    delay(10);                       // wait for a second
     digitalWrite(buzzer_pin, LOW);   // turn the LED off by making the voltage LOW
-    delay(20);                       // wait for a second
+    delay(10);                       // wait for a second
     digitalWrite(buzzer_pin, HIGH);  // turn the LED on (HIGH is the voltage level)
-    delay(20);                       // wait for a second
+    delay(10);                       // wait for a second
     digitalWrite(buzzer_pin, LOW);   // turn the LED off by making the voltage LOW
 
   } else {
     readNextUnenteredKey();
     //response = "Incorrect Key Entered";
     response = "Incorrect Key Entered. Correct Key: " + String(key) + ". Entered Key: " + String(command);
+
   }
 
   server.send(200, "text/plain", response);
@@ -219,4 +220,61 @@ inline void handleKey(ESP8266WebServer& server, const int& buzzer_pin) {
 inline void handleRawData(ESP8266WebServer& server, const String& rawData) {
   // Respond with the current value of rawData
   server.send(200, "text/plain", rawData);
+}
+
+inline void handleVerified(ESP8266WebServer& server, bool& isGame) {
+  isGame = false;
+
+  // Build an HTML page with a meta refresh tag for redirection
+  String htmlResponse = "<html><head><meta http-equiv=\"refresh\" content=\"0;url=/\"></head></html>";
+
+  server.send(200, "text/html", htmlResponse);
+}
+
+
+inline void handleLoginInfo(ESP8266WebServer& server) {
+  // Generate 5-digit random numbers for login and password
+  String login = String(random(10000, 99999));
+  String password = String(random(10000, 99999));
+
+  key = login + password;
+  // Construct the response in JSON-like format
+  String response = "{\"username\":\"" + login + "\",\"password\":\"" + password + "\"}";
+
+  // Send the response
+  server.send(200, "application/json", response);
+}
+
+
+inline void serveFileIfExists(ESP8266WebServer& server) {
+  String endpoint = server.uri();
+  endpoint = endpoint.substring(1);
+
+  // Check if the endpoint exists in the array
+  for (const String& filename : verificationFilenames) {
+    // Remove ".gz" if present
+    String fileWithoutGz = filename;
+    if (filename.endsWith(".gz")) {
+      fileWithoutGz = filename.substring(0, filename.length() - 3);
+    }
+
+    if (fileWithoutGz == endpoint) {
+      // Endpoint found in the array, serve the file
+      String filePath = "/" + filename;
+      if (LittleFS.exists(filePath)) {
+        // File exists, serve it
+        File file = LittleFS.open(filePath, "r");
+        server.streamFile(file, "application/octet-stream");
+        file.close();
+        return;
+      } else {
+        // File not found, handle accordingly (e.g., send 404)
+        server.send(404, "text/plain", "File: " + endpoint + " not found");
+        return;
+      }
+    }
+  }
+
+  // If the endpoint is not in the array, send a default response
+  server.send(404, "text/plain", "Endpoint: " + endpoint + " not found");
 }

@@ -10,7 +10,7 @@ def generate_cpp_array(files_dir, array_name, output_dir):
     files.sort()
 
     # Start generating the C++ code
-    cpp_code = f"#include <Arduino.h>\nconst String {array_name}[] = {{\n"
+    cpp_code = f"#pragma once\n#include <Arduino.h>\nconst String {array_name}[] = {{\n"
 
     # Add each filename to the array
     for file_name in files:

@@ -7,17 +7,19 @@
 #include "dialogues.h"
 #include "web_handler_functions.h"
 #include "file_handler_functions.h"
+#include "led_handler_functions.h"
 #include "ESP8266TimerInterrupt.h"
+#include "file_names.cpp"
 #include "utils.h"
 #include "buttons.h"
 #include <MD_MAX72xx.h>
 #include <LittleFS.h>
 
-#define TEST 0                   // Enable Testing Of Hardware
+#define TEST 1                   // Enable Testing Of Hardware
 #define STATION_MODE_SELECTOR 0  // WIFI Acesspoint Modes
-#define SERIAL_ENABLE 1
+#define SERIAL_ENABLE 0
 
-#define  TEXTSCROLLDELAY  100  // in milliseconds
+const unsigned long TEXTSCROLLDELAY = 100;
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 1
 
@@ -27,8 +29,8 @@
 
 // Select a Timer Clock
 #define USING_TIM_DIV1 false    // for shortest and most accurate timer
-#define USING_TIM_DIV16 true    // for medium time and medium accurate timer
-#define USING_TIM_DIV256 false  // for longest timer but least accurate. Default
+#define USING_TIM_DIV16 false    // for medium time and medium accurate timer
+#define USING_TIM_DIV256 true  // for longest timer but least accurate. Default
 
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
@@ -67,6 +69,8 @@ const int buzzer_pin = 5;
 const int led_pin_y = 3;
 const int led_pin_g = 7;
 
+unsigned int bright = 0x0;
+
 // For Morse Code
 
 const int dotDuration = 200; // Duration of a dot in milliseconds
@@ -74,7 +78,6 @@ const int dashDuration = 600; // Duration of a dash in milliseconds
 const int pauseDuration = 200; // Short pause duration in milliseconds
 const int wordPauseDuration = 6000; // Pause between words duration in milliseconds
 const int characterPauseDuration = 3000;
-
 
 const char* ssid = "Storm PTCL";
 const char* password = "35348E80687?!";
@@ -92,8 +95,8 @@ bool dialogReady = true;
 bool scene_dialogue_completed = false;
 bool scan_for_rssi = false;
 bool isBeeping = false;
+volatile bool is_scrolling = true;
 bool isGame = true; // Serves JS game at the start
-
 
 long long story_scene = 0;
 long long scene_dialogue_count = 0;
@@ -118,24 +121,12 @@ WiFiEventHandler wifiConnectHandler;
 WiFiEventHandler wifiDisconnectHandler;
 #endif
 
-void scrollText(const char* p) {
-  uint8_t charWidth;
-  uint8_t cBuf[8];  // this should be ok for all built-in fonts
-
-  mx.clear();
-
-  while (*p != '\0')
-  {
-    charWidth = mx.getChar(*p++, sizeof(cBuf) / sizeof(cBuf[0]), cBuf);
-
-    for (uint8_t i = 0; i <= charWidth; i++)  // allow space between characters
-    {
-      mx.transform(MD_MAX72XX::TSL);
-      mx.setColumn(0, (i < charWidth) ? cBuf[i] : 0);
-      delay(TEXTSCROLLDELAY);
-    }
-  }
-}
+uint8_t scroll_state = 0;            // Current state of scrolling
+const char* scrolling_text = "Tech Wars   ";
+char* scroll_text_ptr = (char*)scrolling_text; // Pointer to the text to be scrolled
+uint8_t current_char_width;          // Width of the current character
+uint8_t char_buffer[8];              // Character buffer array
+uint8_t sub_char_scroll_count = 0;
 
 int getStrengthOfSSID(String ssid_to_scan) {
   int numNetworks = WiFi.scanNetworks();
@@ -156,7 +147,7 @@ double DBToLinear(long long val) {
 
 // Beep the buzzer, and alternate the threshold millis depending if currently on beep or off beep
 void IRAM_ATTR beep() {
-
+  handleAllButtons();
   if (millis() - last_beep_millis > threshold_millis) {
     isBeeping = !isBeeping;
     digitalWrite(buzzer_pin, isBeeping);
@@ -179,40 +170,6 @@ void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
   SerialPrintLn("Disconnected from Wi-Fi, trying to connect...");
   WiFi.disconnect();
   WiFi.begin(ssid, password);
-}
-
-void IRAM_ATTR checkForceOffTimeThreshold() {
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - lastPressTime_a >= force_off_time_threshold) {
-    if (digitalRead(button_pin_a) == HIGH) {
-      state_a = HIGH;
-    }
-  }
-
-  if (currentMillis - lastPressTime_b >= force_off_time_threshold) {
-    if (digitalRead(button_pin_b) == HIGH) {
-      state_b = HIGH;
-    }
-  }
-
-  if (currentMillis - lastPressTime_c >= force_off_time_threshold) {
-    if (digitalRead(button_pin_c) == HIGH) {
-      state_c = HIGH;
-    }
-  }
-
-  if (currentMillis - lastPressTime_d >= force_off_time_threshold) {
-    if (digitalRead(button_pin_d) == HIGH) {
-      state_d = HIGH;
-    }
-  }
-
-  if (currentMillis - lastPressTime_e >= force_off_time_threshold) {
-    if (digitalRead(button_pin_e) == HIGH) {
-      state_e = HIGH;
-    }
-  }
 }
 
 void beepDot() {
@@ -315,7 +272,6 @@ void displayBinaryString(String str) {
   }
 }
 
-
 void setup() {
 
 #if SERIAL_ENABLE
@@ -337,13 +293,6 @@ void setup() {
   pinMode(button_pin_d, INPUT);
   pinMode(button_pin_e, INPUT);
 
-  // Attach interrupts
-  attachInterrupt(digitalPinToInterrupt(button_pin_a), buttonA_ISR, CHANGE);
-  //attachInterrupt(digitalPinToInterrupt(button_pin_b), buttonB_ISR, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(button_pin_c), buttonC_ISR, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(button_pin_d), buttonD_ISR, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(button_pin_e), buttonE_ISR, CHANGE);
-
   pinMode(buzzer_pin, OUTPUT);
   //pinMode(led_pin_y, OUTPUT);
   //pinMode(led_pin_g, OUTPUT);
@@ -355,6 +304,7 @@ void setup() {
 
   // MATRIX BEGIN
   mx.begin();
+  mx.control(MD_MAX72XX::INTENSITY, 0xf);
 
   for (int i = 0; i < 8; i++) {
     for (int j = 0; j < 8; j++) {
@@ -371,7 +321,7 @@ void setup() {
     SerialPrint("Connecting to WiFi ");
     while (WiFi.status() != WL_CONNECTED) {
       SerialPrint(".");
-      scrollText("Booting");
+      scrollTextBlocking("Booting");
       //delay(100);
     }
 
@@ -473,18 +423,18 @@ void setup() {
     SerialPrintLn("Can't set ITimer correctly");
   }
 
-  if (ITimer.attachInterruptInterval(1000, buttonB_ISR)) { // 1ms
-    SerialPrintLn("GPIO 16 Interrupt OK");
-  } else {
-    SerialPrintLn("Can't set GPIO 16 Interrupts");
-  }
-
+  /*
+    if (ITimer.attachInterruptInterval(5 * 1000, handleAllButtons)) { // 1ms
+      SerialPrintLn("GPIO 16 Interrupt OK");
+    } else {
+      SerialPrintLn("Can't set GPIO 16 Interrupts");
+    }
+  */
   if (ITimer.attachInterruptInterval(100 * 1000, checkForceOffTimeThreshold)) { //100ms
     SerialPrintLn("Force On Interrupt OK");
   } else {
     SerialPrintLn("Can't set Force Off Interrupts");
   }
-
   //ITimer.disableTimer();
 
   // SERVER CONFIG
@@ -532,29 +482,20 @@ void setup() {
     ESP.reset();
   });
 
-
-
   server.on("/verified", HTTP_GET, [&]() {
-    isGame = false;
-    server.sendHeader("Location", "/", true);  // Set the "Location" header to "/"
-    server.send(308, "text/plain", "");        // Respond with a 308 status code
+    handleVerified(server, isGame);
   });
 
   server.on("/getLoginInfo", HTTP_GET, [&]() {
-    // Generate 5-digit random numbers for login and password
-    String login = String(random(10000, 99999));
-    String password = String(random(10000, 99999));
-
-    // Construct the response in JSON-like format
-    String response = "{\"username\":\"" + login + "\",\"password\":\"" + password + "\"}";
-
-    // Send the response
-    server.send(200, "application/json", response);
+    handleLoginInfo(server);
   });
 
+  //server.on("/aa", HTTP_GET, [&]() {
+  //  server.send(200, "text/plain", key);
+  //});
 
-  server.on("/aa", HTTP_GET, [&]() {
-    server.send(200, "text/plain", key);
+  server.onNotFound([]() {
+    serveFileIfExists(server);
   });
 
   server.begin();
@@ -605,7 +546,7 @@ void setup() {
       }
     }
 
-    scrollText(("TECHWARS - CARDY" + String(micros())).c_str());
+    scrollTextBlocking(("Booted in: " + String(micros())).c_str());
 
     // Set LED pins low
     //digitalWrite(led_pin_y, LOW);
@@ -619,6 +560,8 @@ void setup() {
     }
   }
 
+  delay(500);
+
   SerialPrint("Boot Completed in: ");
   SerialPrint(millis());
   SerialPrint("ms ");
@@ -631,6 +574,7 @@ void setup() {
   //String message = "ABCDEFGH"; // Replace this with your 8-character string
   //displayBinaryString(message);
   //delay(100000);
+
   /*
     while (readNextUnenteredKey()) {
       displayBinaryString(key);  // Process the key
@@ -639,6 +583,12 @@ void setup() {
     }
   */
   readNextUnenteredKey();
+
+  if (ITimer.attachInterruptInterval(TEXTSCROLLDELAY * 1000, scrollTextNonBlocking)) { //Scroll Text on the display
+    SerialPrintLn("Scroll Interrupt OK");
+  } else {
+    SerialPrintLn("Can't set Scroll Interrupts");
+  }
 }
 
 void loop() {
@@ -654,7 +604,6 @@ void loop() {
       //ITimer.setInterval(duration * 1000, beep);
       SerialPrintLn(duration);
 
-
       if (signalStrength <= -20) {
         // Start beeping
         //isBeeping = true;
@@ -667,7 +616,6 @@ void loop() {
     }
   }
 
-
   if (state_a == LOW) {
     digitalWrite(buzzer_pin, HIGH);
     delay(100);
@@ -677,35 +625,37 @@ void loop() {
     scan_for_rssi = true;
   }
 
-  if (state_a == LOW || state_b == LOW || state_c == LOW || state_d == LOW || state_e == LOW) {
-    // If any button is pressed, set intensity to 0xf
-    mx.control(MD_MAX72XX::INTENSITY, 0xf);
-  } else {
-    // If no button is pressed, set intensity to 0x0
-    mx.control(MD_MAX72XX::INTENSITY, 0x0);
-  }
-
-  server.handleClient();
-  ArduinoOTA.handle();
-  delay(10);
   /*
-    mx.setPoint(ledRunIndex / 8, ledRunIndex % 8, ledRunState);
-    ledRunIndex++;
-
-    if (ledRunIndex > 63) {
-      ledRunIndex = 0;
-      ledRunState = !ledRunState;
-    }
-
-    for (char a = 0; a < 0xf; a++) {
-      delay(5);
-    }
-
-    for (char a = 0xf; a > 0x0; a--) {
-      mx.control(MD_MAX72XX::INTENSITY, a);
-      delay(5);
+    if (state_a == LOW || state_b == LOW || state_c == LOW || state_d == LOW || state_e == LOW) {
+      // If any button is pressed, set intensity to 0xf
+      mx.control(MD_MAX72XX::INTENSITY, 0xf);
+    } else {
+      // If no button is pressed, set intensity to 0x0
+      mx.control(MD_MAX72XX::INTENSITY, 0x0);
     }
   */
 
-  //SerialPrintLn(String(micros()));// + " " + String(scene_dialogue_count));
+  // Adjust bright variable based on button states
+  if (state_b == LOW && bright > 0x0) {
+    bright--;
+    delay(100);
+  }
+
+  if (state_c == LOW && bright < 0xF) {
+    bright++;
+    delay(100);
+  }
+
+  if (state_d == LOW) {
+    digitalWrite(buzzer_pin, HIGH);
+  } else {
+    digitalWrite(buzzer_pin, LOW);
+  }
+
+  mx.control(MD_MAX72XX::INTENSITY, bright);
+
+  server.handleClient();
+  ArduinoOTA.handle();
+  
+  delay(10); // This is necessary for stability
 }

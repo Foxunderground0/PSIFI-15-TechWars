@@ -70,7 +70,7 @@ bool readNextUnenteredKey() {
 
       // Check if the line starts with a '/'
       if (line.charAt(0) != '/') {
-        key = line;  // Store the unentered key
+        key = line.substring(0, line.length() - 1);  // Store the unentered key
         file.close();
         return true;
       }

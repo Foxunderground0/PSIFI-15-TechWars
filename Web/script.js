@@ -48,46 +48,59 @@ var checkFlagInterval = setInterval(function () {
 }, 100); // Check every 100 milliseconds
 
 let typingInProgress = false;
+let requestInProgress = false;
 
 function getCardyChat() {
-    cardyChatInterval = setInterval(function () {
-        if (typingInProgress) {
-            // If typing is already in progress, skip this interval
-            return;
-        }
+    if (requestInProgress) {
+        // If a request is already in progress, skip this function call
+        return;
+    }
 
-        fetch('/dialogReady')
-            .then(response => response.text())
-            .then(async data => {
-                if (data == "1") {
-                    if (loaded_old_dialogue == 0) {
-                        await fetch('/pastDialogue')
-                            .then(response => response.text())
-                            .then(data => {
-                                console.log("HEREEEE");
-                                data = data.split("\n");
-                                data.forEach((data) => {
-                                    document.getElementById('pastDialogue').innerHTML += data + "<br>";
-                                    console.log(data);
-                                });
-                            });
-                        loaded_old_dialogue = 1;
-                    } else if (loaded_old_dialogue == 1) {
-                        //clearInterval(cardyChatInterval);
-                        await fetch('/latestDialogue')
-                            .then(response => response.text())
-                            .then(data => {
-                                typingInProgress = true; // Set the flag to true
-                                document.getElementById('data').innerHTML += "<span id=\"dialogue_" + new_dialogue_id_count + "\" class=\"purple\">" + "</span><br>";
+    requestInProgress = true; // Set the flag to indicate a request is in progress
+
+    fetch('/dialogReady')
+        .then(response => response.text())
+        .then(async data => {
+            if (data == "1") {
+                if (loaded_old_dialogue == 0) {
+                    await fetch('/pastDialogue')
+                        .then(response => response.text())
+                        .then(data => {
+                            console.log("HEREEEE");
+                            data = data.split("\n");
+                            data.forEach((data) => {
+                                document.getElementById('pastDialogue').innerHTML += data + "<br>";
                                 console.log(data);
-                                typeDialogue("dialogue_" + new_dialogue_id_count, data);
-                                new_dialogue_id_count += 1;
                             });
-                    }
+                        });
+                    loaded_old_dialogue = 1;
+                } else if (loaded_old_dialogue == 1) {
+                    await fetch('/latestDialogue')
+                        .then(response => response.text())
+                        .then(data => {
+                            typingInProgress = true; // Set the flag to true
+                            document.getElementById('data').innerHTML += "<span id=\"dialogue_" + new_dialogue_id_count + "\" class=\"purple\">" + "</span><br>";
+                            console.log(data);
+                            typeDialogue("dialogue_" + new_dialogue_id_count, data);
+                            new_dialogue_id_count += 1;
+                        })
+                        .finally(() => {
+                            // Clear the flag when the request is complete, whether it succeeds or fails
+                            requestInProgress = false;
+                        });
                 }
-            });
-    }, 100);
+            } else {
+                // Clear the flag if the response is not "1"
+                requestInProgress = false;
+            }
+        })
+        .catch(error => {
+            console.error("Error during fetch:", error);
+            // Clear the flag in case of an error
+            requestInProgress = false;
+        });
 }
+
 
 function typeDialogue(id, data) {
     const element = document.getElementById(id);

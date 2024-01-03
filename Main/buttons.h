@@ -20,43 +20,56 @@ extern unsigned long lastPressTime_e;
 
 extern const unsigned long debounceThreshold;
 
-// Non-blocking Debounce Interrupt Service Routines
-inline void IRAM_ATTR buttonA_ISR() {
+extern const unsigned long force_off_time_threshold;
+
+
+inline void IRAM_ATTR handleButtonPress(int button_pin, volatile bool& state, unsigned long& lastPressTime) {
   unsigned long currentMillis = millis();
-  if (currentMillis - lastPressTime_a >= debounceThreshold) {
-    lastPressTime_a = currentMillis;
-    state_a = digitalRead(button_pin_a);
+  if (currentMillis - lastPressTime >= debounceThreshold) {
+    lastPressTime = currentMillis;
+    state = digitalRead(button_pin);
   }
 }
 
-inline void IRAM_ATTR buttonB_ISR() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - lastPressTime_b >= debounceThreshold) {
-    lastPressTime_b = currentMillis;
-    state_b = digitalRead(button_pin_b);
-  }
+// Timer callback function to handle all buttons
+inline void IRAM_ATTR handleAllButtons() {
+  handleButtonPress(button_pin_a, state_a, lastPressTime_a);
+  handleButtonPress(button_pin_b, state_b, lastPressTime_b);
+  handleButtonPress(button_pin_c, state_c, lastPressTime_c);
+  handleButtonPress(button_pin_d, state_d, lastPressTime_d);
+  handleButtonPress(button_pin_e, state_e, lastPressTime_e);
 }
 
-inline void IRAM_ATTR buttonC_ISR() {
+inline void IRAM_ATTR checkForceOffTimeThreshold() {
   unsigned long currentMillis = millis();
-  if (currentMillis - lastPressTime_c >= debounceThreshold) {
-    lastPressTime_c = currentMillis;
-    state_c = digitalRead(button_pin_c);
-  }
-}
 
-inline void IRAM_ATTR buttonD_ISR() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - lastPressTime_d >= debounceThreshold) {
-    lastPressTime_d = currentMillis;
-    state_d = digitalRead(button_pin_d);
+  if (currentMillis - lastPressTime_a >= force_off_time_threshold) {
+    if (digitalRead(button_pin_a) == HIGH) {
+      state_a = HIGH;
+    }
   }
-}
 
-inline void IRAM_ATTR buttonE_ISR() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - lastPressTime_e >= debounceThreshold) {
-    lastPressTime_e = currentMillis;
-    state_e = digitalRead(button_pin_e);
+  if (currentMillis - lastPressTime_b >= force_off_time_threshold) {
+    if (digitalRead(button_pin_b) == HIGH) {
+      state_b = HIGH;
+    }
+  }
+
+  if (currentMillis - lastPressTime_c >= force_off_time_threshold) {
+    if (digitalRead(button_pin_c) == HIGH) {
+      state_c = HIGH;
+    }
+  }
+
+  if (currentMillis - lastPressTime_d >= force_off_time_threshold) {
+    if (digitalRead(button_pin_d) == HIGH) {
+      state_d = HIGH;
+    }
+  }
+
+  if (currentMillis - lastPressTime_e >= force_off_time_threshold) {
+    if (digitalRead(button_pin_e) == HIGH) {
+      state_e = HIGH;
+    }
   }
 }
