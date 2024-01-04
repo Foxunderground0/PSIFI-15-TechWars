@@ -4,7 +4,7 @@
 #include "utils.h"
 
 inline void handleRoot(ESP8266WebServer& server, bool& dialogReady, bool& isGame) {
-  if (isGame) {
+  if (0) {
     const char* gzFilePath = "/game.html.gz"; // Adjust the path as needed
 
     // Open the compressed file from LittleFS
@@ -196,15 +196,15 @@ inline void handleKey(ESP8266WebServer& server, const int& buzzer_pin) {
     readNextUnenteredKey();
 
     digitalWrite(buzzer_pin, HIGH);  // turn the LED on (HIGH is the voltage level)
-    delay(10);                       // wait for a second
+    delay(20);                       // wait for a second
     digitalWrite(buzzer_pin, LOW);   // turn the LED off by making the voltage LOW
-    delay(10);                       // wait for a second
+    delay(50);                       // wait for a second
     digitalWrite(buzzer_pin, HIGH);  // turn the LED on (HIGH is the voltage level)
-    delay(10);                       // wait for a second
+    delay(20);                       // wait for a second
     digitalWrite(buzzer_pin, LOW);   // turn the LED off by making the voltage LOW
-    delay(10);                       // wait for a second
+    delay(50);                       // wait for a second
     digitalWrite(buzzer_pin, HIGH);  // turn the LED on (HIGH is the voltage level)
-    delay(10);                       // wait for a second
+    delay(20);                       // wait for a second
     digitalWrite(buzzer_pin, LOW);   // turn the LED off by making the voltage LOW
 
   } else {
