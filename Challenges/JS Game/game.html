@@ -33,6 +33,7 @@
 <body>
     <canvas id="game-canvas" width="640" height="640"></canvas>
     <script>
+        a = 0;
         // ###################################################################
         // RequestAnimationFrame shim
         //
@@ -381,7 +382,8 @@
             // draw the blocks
             wall.draw();
 
-            if (score > 59) {
+            if (score > 70 && a == 0) {
+                a = 1;
                 location.href = 'verified';
             }
         }

@@ -61,7 +61,7 @@ def process_keys_folder(input_folder, output_folder, solution_folder):
                 data = file.read().strip()
 
             qrcode_img = generate_qrcode(data)
-            noisy_image = generate_noisy_image(size=1980)  # Increased size
+            noisy_image = generate_noisy_image(size=1000)  # Increased size
             red_image = Image.new(
                 'RGB', (noisy_image.width, noisy_image.height), 'red')
 

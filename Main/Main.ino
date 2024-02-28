@@ -14,12 +14,17 @@
 #include "buttons.h"
 #include <MD_MAX72xx.h>
 #include <LittleFS.h>
+#include <ESP8266WiFi.h>
+//#include <ESPAsyncTCP.h>
+//#include <ESPAsyncWebServer.h>
 
-#define TEST 1                   // Enable Testing Of Hardware
+#define TEST 0                   // Enable Testing Of Hardware
 #define STATION_MODE_SELECTOR 0  // WIFI Acesspoint Modes
 #define SERIAL_ENABLE 0
 
-const unsigned long TEXTSCROLLDELAY = 100;
+#define PWD "00000000"
+
+const unsigned long TEXTSCROLLDELAY = 80;
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 #define MAX_DEVICES 1
 
@@ -35,6 +40,7 @@ const unsigned long TEXTSCROLLDELAY = 100;
 MD_MAX72XX mx = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
 long TIMER_INTERVAL_MS = 4000;  //4ms
+unsigned long long lastScrollMillis = 0;
 
 /*Button map
 
@@ -69,7 +75,7 @@ const int buzzer_pin = 5;
 const int led_pin_y = 3;
 const int led_pin_g = 7;
 
-unsigned int bright = 0x0;
+unsigned int bright = 0xf;
 
 // For Morse Code
 
@@ -80,7 +86,7 @@ const int wordPauseDuration = 6000; // Pause between words duration in milliseco
 const int characterPauseDuration = 3000;
 
 const char* ssid = "Storm PTCL";
-const char* password = "35348E80687?!";
+const char* password_wifi = "35348E80687?!";
 
 long long last_beep_millis = 0;
 long long threshold_millis = 0;
@@ -89,10 +95,11 @@ long long on_beep = 20;
 long long off_beep = 1000;
 
 String rawData = "36633";
-String teamName = "Dev Board";
+String teamName = "Nauman's Dev Board";
 
-bool dialogReady = true;
-bool scene_dialogue_completed = false;
+bool isSomethingDone = false;
+bool dialogReady = false;
+bool scene_dialogue_completed = true;
 bool scan_for_rssi = false;
 bool isBeeping = false;
 volatile bool is_scrolling = true;
@@ -111,8 +118,7 @@ String key = "";  // Global variable to store the key
 
 // Init Server Object
 ESP8266WebServer server(80);
-// Init ESP8266 timer 1
-ESP8266Timer ITimer;
+
 // Create an instance of the HTTPUpdateServer class
 ESP8266HTTPUpdateServer httpUpdater;
 
@@ -122,7 +128,8 @@ WiFiEventHandler wifiDisconnectHandler;
 #endif
 
 uint8_t scroll_state = 0;            // Current state of scrolling
-const char* scrolling_text = "Tech Wars   ";
+const char* scrolling_text = "Mr. Nauman Ahmad Zaffar   ";
+bool scroll_text_ptr_semaphore = 0;
 char* scroll_text_ptr = (char*)scrolling_text; // Pointer to the text to be scrolled
 uint8_t current_char_width;          // Width of the current character
 uint8_t char_buffer[8];              // Character buffer array
@@ -147,12 +154,15 @@ double DBToLinear(long long val) {
 
 // Beep the buzzer, and alternate the threshold millis depending if currently on beep or off beep
 void IRAM_ATTR beep() {
-  handleAllButtons();
-  if (millis() - last_beep_millis > threshold_millis) {
-    isBeeping = !isBeeping;
-    digitalWrite(buzzer_pin, isBeeping);
-    last_beep_millis = millis();
-    isBeeping ? threshold_millis = on_beep : threshold_millis = off_beep;
+  return;
+  if (scan_for_rssi == true) {
+    //handleAllButtons();
+    if (millis() - last_beep_millis > threshold_millis) {
+      isBeeping = !isBeeping;
+      digitalWrite(buzzer_pin, isBeeping);
+      last_beep_millis = millis();
+      isBeeping ? threshold_millis = on_beep : threshold_millis = off_beep;
+    }
   }
 }
 
@@ -169,7 +179,7 @@ void onWifiConnect(const WiFiEventStationModeGotIP& event) {
 void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
   SerialPrintLn("Disconnected from Wi-Fi, trying to connect...");
   WiFi.disconnect();
-  WiFi.begin(ssid, password);
+  WiFi.begin(ssid, password_wifi);
 }
 
 void beepDot() {
@@ -190,72 +200,86 @@ void beepDash() {
   delay(pauseDuration);
 }
 
+int morseCount = 0;
+unsigned long long lastCharacterPauseCheck = 0;
+
 void morseCode(String message) {
-  const char morseCodes[36][6] = {
-    {'.', '-'},   // A
-    {'-', '.', '.', '.'},   // B
-    {'-', '.', '-', '.'},   // C
-    {'-', '.', '.'},   // D
-    {'.', '.'},   // E
-    {'.', '.', '-', '.'},   // F
-    {'-', '-', '.'},   // G
-    {'.', '.', '.', '.'},   // H
-    {'.', '.'},   // I
-    {'.', '-', '-', '-'},   // J
-    {'-', '.', '-'},   // K
-    {'.', '-', '.', '.'},   // L
-    {'-', '-'},   // M
-    {'-', '.'},   // N
-    {'-', '-', '-'},   // O
-    {'.', '-', '-', '.'},   // P
-    {'-', '-', '.', '-'},   // Q
-    {'.', '-', '.'},   // R
-    {'.', '.', '.'},   // S
-    {'-'},   // T
-    {'.', '.', '-'},   // U
-    {'.', '.', '.', '-'},   // V
-    {'.', '-', '-'},   // W
-    {'-', '.', '.', '-'},   // X
-    {'-', '.', '-', '-'},   // Y
-    {'-', '-', '.', '.'},   // Z
-    {'.', '-', '.', '-', '-'},   // 1
-    {'.', '.', '-', '.', '-'},   // 2
-    {'.', '.', '.', '-', '-'},   // 3
-    {'.', '.', '.', '.', '-'},   // 4
-    {'.', '.', '.', '.', '.'},   // 5
-    {'-', '.', '.', '.', '.'},   // 6
-    {'-', '-', '.', '.', '.'},   // 7
-    {'-', '-', '-', '.', '.'},   // 8
-    {'-', '-', '-', '-', '.'},   // 9
-    {'-', '-', '-', '-', '-'}    // 0
-  };
+  if (millis() - lastCharacterPauseCheck > characterPauseDuration) {
+    const char morseCodes[36][6] = {
+      {'.', '-'},   // A
+      {'-', '.', '.', '.'},   // B
+      {'-', '.', '-', '.'},   // C
+      {'-', '.', '.'},   // D
+      {'.', '.'},   // E
+      {'.', '.', '-', '.'},   // F
+      {'-', '-', '.'},   // G
+      {'.', '.', '.', '.'},   // H
+      {'.', '.'},   // I
+      {'.', '-', '-', '-'},   // J
+      {'-', '.', '-'},   // K
+      {'.', '-', '.', '.'},   // L
+      {'-', '-'},   // M
+      {'-', '.'},   // N
+      {'-', '-', '-'},   // O
+      {'.', '-', '-', '.'},   // P
+      {'-', '-', '.', '-'},   // Q
+      {'.', '-', '.'},   // R
+      {'.', '.', '.'},   // S
+      {'-'},   // T
+      {'.', '.', '-'},   // U
+      {'.', '.', '.', '-'},   // V
+      {'.', '-', '-'},   // W
+      {'-', '.', '.', '-'},   // X
+      {'-', '.', '-', '-'},   // Y
+      {'-', '-', '.', '.'},   // Z
+      {'.', '-', '.', '-', '-'},   // 1
+      {'.', '.', '-', '.', '-'},   // 2
+      {'.', '.', '.', '-', '-'},   // 3
+      {'.', '.', '.', '.', '-'},   // 4
+      {'.', '.', '.', '.', '.'},   // 5
+      {'-', '.', '.', '.', '.'},   // 6
+      {'-', '-', '.', '.', '.'},   // 7
+      {'-', '-', '-', '.', '.'},   // 8
+      {'-', '-', '-', '-', '.'},   // 9
+      {'-', '-', '-', '-', '-'}    // 0
+    };
 
-  for (int i = 0; i < message.length(); i++) {
-    char currentChar = toUpperCase(message[i]);
-
-    if (currentChar == ' ') {
-      delay(wordPauseDuration);
-    } else if (currentChar >= 'A' && currentChar <= 'Z') {
-      int index = currentChar - 'A';
-      for (int j = 0; j < sizeof(morseCodes[index]) / sizeof(morseCodes[index][0]); j++) {
-        if (morseCodes[index][j] == '.') {
-          beepDot();
-        } else if (morseCodes[index][j] == '-') {
-          beepDash();
-        }
-      }
-      delay(characterPauseDuration); // Character pause
-    } else if (currentChar >= '0' && currentChar <= '9') {
-      int index = currentChar - '0' + 26; // Map digits to Morse code array
-      for (int j = 0; j < sizeof(morseCodes[index]) / sizeof(morseCodes[index][0]); j++) {
-        if (morseCodes[index][j] == '.') {
-          beepDot();
-        } else if (morseCodes[index][j] == '-') {
-          beepDash();
-        }
-      }
-      delay(characterPauseDuration); // Character pause
+    if (morseCount >= message.length()) {
+      morseCount = 0;
+      delay(5000);
     }
+
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        mx.setPoint(i, j, true);
+      }
+    }
+
+    char currentChar = toUpperCase(message[morseCount]);
+
+    int index;
+    if (currentChar >= 'A' && currentChar <= 'Z') {
+      index = currentChar - 'A';
+    } else if (currentChar >= '0' && currentChar <= '9') {
+      index = currentChar - '0' + 25; // Map digits to Morse code array
+    } else {
+      // Handle other characters or invalid input
+      index = -1; // Or any value that indicates an error
+    }
+
+    // Check if the character is valid before processing Morse code
+    if (index != -1) {
+      for (int j = 0; j < sizeof(morseCodes[index]) / sizeof(morseCodes[index][0]); j++) {
+        if (morseCodes[index][j] == '.') {
+          beepDot();
+        } else if (morseCodes[index][j] == '-') {
+          beepDash();
+        }
+      }
+    }
+
+    lastCharacterPauseCheck = millis();
+    morseCount++;
   }
 }
 
@@ -316,8 +340,8 @@ void setup() {
 
   // WIFI CONFIG
   if (STATION_MODE_SELECTOR) {
-    // Connect to the "Storm PTCL" WiFi network with the specified password
-    WiFi.begin(ssid, password);
+    // Connect to the "Storm PTCL" WiFi network with the specified password_wifi
+    WiFi.begin(ssid, password_wifi);
     SerialPrint("Connecting to WiFi ");
     while (WiFi.status() != WL_CONNECTED) {
       SerialPrint(".");
@@ -331,7 +355,8 @@ void setup() {
     SerialPrintLn(WiFi.localIP());
   } else {
     // Configure the Access Point
-    WiFi.softAP("Test", "");
+    WiFi.softAP("2731933AP2-231215", PWD, random(1, 12), 1);
+
 
     // Get the IP address of the Access Point
     IPAddress apIP = WiFi.softAPIP();
@@ -417,25 +442,30 @@ void setup() {
   SerialPrintLn("OTA OK");
 
   // TIMER CONFIG
-  if (ITimer.attachInterruptInterval(1000, beep)) { // 1ms
-    SerialPrintLn("ITimer OK");
-  } else {
-    SerialPrintLn("Can't set ITimer correctly");
-  }
-
   /*
-    if (ITimer.attachInterruptInterval(5 * 1000, handleAllButtons)) { // 1ms
-      SerialPrintLn("GPIO 16 Interrupt OK");
+    if (ITimer.attachInterruptInterval(10000, beep)) { // 1ms
+    SerialPrintLn("ITimer OK");
     } else {
-      SerialPrintLn("Can't set GPIO 16 Interrupts");
+    SerialPrintLn("Can't set ITimer correctly");
     }
   */
-  if (ITimer.attachInterruptInterval(100 * 1000, checkForceOffTimeThreshold)) { //100ms
-    SerialPrintLn("Force On Interrupt OK");
-  } else {
-    SerialPrintLn("Can't set Force Off Interrupts");
-  }
-  //ITimer.disableTimer();
+  /*
+
+    if (ITimer.attachInterruptInterval(1000, scrollTextNonBlocking)) { //Scroll Text on the display
+    SerialPrintLn("Scroll Interrupt OK");
+    } else {
+    SerialPrintLn("Can't set Scroll Interrupts");
+    }
+  */
+
+  /*
+    if (ITimer.attachInterruptInterval(100 * 1000, checkForceOffTimeThreshold)) { //100ms
+      SerialPrintLn("Force On Interrupt OK");
+    } else {
+      SerialPrintLn("Can't set Force Off Interrupts");
+    }
+    //ITimer.disableTimer();
+  */
 
   // SERVER CONFIG
   server.on("/", HTTP_GET, [&]() {
@@ -490,6 +520,14 @@ void setup() {
     handleLoginInfo(server);
   });
 
+  server.on("/defuse", HTTP_GET, [&]() {
+    handleDefuse(server);
+  });
+
+  server.on("/qr", HTTP_GET, [&]() {
+    handleQR(server);
+  });
+  
   //server.on("/aa", HTTP_GET, [&]() {
   //  server.send(200, "text/plain", key);
   //});
@@ -546,21 +584,36 @@ void setup() {
       }
     }
 
-    scrollTextBlocking(("Booted in: " + String(micros())).c_str());
+    //scrollTextBlocking(("Booted in: " + String(micros())).c_str());
 
     // Set LED pins low
     //digitalWrite(led_pin_y, LOW);
     //digitalWrite(led_pin_g, LOW);
-  }
 
-  // Set matrix to all on
-  for (int i = 0; i < 8; i++) {
-    for (int j = 0; j < 8; j++) {
-      mx.setPoint(i, j, true);
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        mx.setPoint(i, j, false);
+        delay(10);
+      }
+    }
+
+  } else {
+    // Set matrix to all on
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        mx.setPoint(i, j, true);
+        delay(20);
+      }
+    }
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        mx.setPoint(i, j, false);
+        delay(20);
+      }
     }
   }
 
-  delay(500);
+  delay(100);
 
   SerialPrint("Boot Completed in: ");
   SerialPrint(millis());
@@ -584,23 +637,55 @@ void setup() {
   */
   readNextUnenteredKey();
 
-  if (ITimer.attachInterruptInterval(TEXTSCROLLDELAY * 1000, scrollTextNonBlocking)) { //Scroll Text on the display
-    SerialPrintLn("Scroll Interrupt OK");
-  } else {
-    SerialPrintLn("Can't set Scroll Interrupts");
+  if (story_scene == 0) {
+    updateScrollTextNonBlocking("Riddle on me     ");
+    while (story_scene == 0 && WiFi.softAPgetStationNum() <= 0) {
+      scrollTextNonBlocking();
+      delay(10);
+    }
+
+    scene_dialogue_count = 0;
+    story_scene = 1;
+
+    updateScrollTextNonBlocking("Go to http://ESP8266.local/   ");
   }
 }
 
 void loop() {
   if (scene_dialogue_completed == true) {
+    server.handleClient();
     if (scan_for_rssi == true) {
+      isSomethingDone = true;
       //ITimer.enableTimer();
+
+
       int signalStrength = getStrengthOfSSID("HP-LASERJET-1881");
+
+      for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+          mx.setPoint(i, j, false);
+          //delay(20);
+        }
+      }
 
       long duration = mapDouble(max(signalStrength, -90), -90, -20, 2000, 1);  // Map signal strength to duration
       mx.control(MD_MAX72XX::INTENSITY, map(max(signalStrength, -90), -90, -20, 0x0, 0xf));
-      off_beep = duration;
+      //off_beep = duration;
+      for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+          mx.setPoint(ledRunIndex / 8, ledRunIndex % 8, ledRunState);
+          ledRunIndex++;
 
+          if (ledRunIndex == map(max(signalStrength, -90), -90, -20, 0, 64)) {
+            break;
+          }
+        }
+        if (ledRunIndex == map(max(signalStrength, -90), -90, -20, 0, 64)) {
+          break;
+        }
+      }
+
+      ledRunIndex = 0;
       //ITimer.setInterval(duration * 1000, beep);
       SerialPrintLn(duration);
 
@@ -614,15 +699,37 @@ void loop() {
         scan_for_rssi = false;
       }
     }
+
+    if (story_scene == 5) {
+      isSomethingDone = true;
+      String message = "92461"; // Replace this with the string you want to encode
+      morseCode(message);
+      server.handleClient();
+      //delay(100);
+    }
+
+    if (story_scene == 8) {
+      isSomethingDone = true;
+      String message = "XhCgoRJ7"; // Replace this with your 8-character string
+      displayBinaryString(message);
+      server.handleClient();
+    }
   }
 
-  if (state_a == LOW) {
+  if (!scan_for_rssi && isSomethingDone != true) {
+    scrollTextNonBlocking();
+    mx.control(MD_MAX72XX::INTENSITY, bright);
+  }
+
+
+  if (state_a == LOW && story_scene == 1) {
     digitalWrite(buzzer_pin, HIGH);
     delay(100);
     digitalWrite(buzzer_pin, LOW);
-    //dialogReady = true;
-    scene_dialogue_completed = true;
-    scan_for_rssi = true;
+    dialogReady = true;
+    //scene_dialogue_completed = true;
+    //scan_for_rssi = true;
+    delay(100);
   }
 
   /*
@@ -652,10 +759,23 @@ void loop() {
     digitalWrite(buzzer_pin, LOW);
   }
 
-  mx.control(MD_MAX72XX::INTENSITY, bright);
+  /*
+    for (char a = 0; a < 0xf; a++) {
+      mx.control(MD_MAX72XX::INTENSITY, a);
+      delay(2);
+    }
+
+    for (char a = 0xf; a > 0x0; a--) {
+      mx.control(MD_MAX72XX::INTENSITY, a);
+      delay(2);
+    }
+  */
+
+
 
   server.handleClient();
   ArduinoOTA.handle();
-  
+  isSomethingDone = false;
+
   delay(10); // This is necessary for stability
 }
